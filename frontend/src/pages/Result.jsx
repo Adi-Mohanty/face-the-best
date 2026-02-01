@@ -1,4 +1,11 @@
+import { useLocation } from "react-router-dom";
+
 export default function Result() {
+    const { state } = useLocation();
+    const { score, questions } = state;
+
+    console.log(score, questions);
+
     return (
       <div className="bg-background-light dark:bg-background-dark text-[#0f0f1a] dark:text-white min-h-screen">
   
@@ -389,6 +396,11 @@ export default function Result() {
           </div>
         </div>
       </main>
+
+      <button onClick={() => navigate("/review", { state })}>
+  Review Answers
+</button>
+
 
       {/* Footer Space */}
       <footer className="mt-12 py-8 border-t border-[#e9e9f2] dark:border-[#2d2d45] text-center text-[#555591] dark:text-gray-500 text-sm">

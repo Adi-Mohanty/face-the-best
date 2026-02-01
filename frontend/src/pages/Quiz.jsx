@@ -1,7 +1,179 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { mockQuestions } from "../data/mockQuestions";
+
+const STORAGE_KEY = "exam-progress";
+
 export default function Quiz() {
+    const navigate = useNavigate();
+  
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [answers, setAnswers] = useState({});
+    const [skipped, setSkipped] = useState(new Set());
+    const [markedForReview, setMarkedForReview] = useState(new Set());
+    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+    const [isSubmitted, setIsSubmitted] = useState(false);
+  
+    const question = mockQuestions[currentIndex];
+    const totalQuestions = mockQuestions.length;
+  
+    /* ---------------- TIMER ---------------- */
+    useEffect(() => {
+      if (timeLeft <= 0) {
+        handleSubmit();
+        return;
+      }
+  
+      const interval = setInterval(() => {
+        setTimeLeft(t => t - 1);
+      }, 1000);
+  
+      return () => clearInterval(interval);
+    }, [timeLeft]);
+
+    useEffect(() => {
+        // Do not persist after submission
+        if (timeLeft <= 0) return;
+      
+        const payload = {
+          currentIndex,
+          answers,
+          skipped: Array.from(skipped),
+          markedForReview: Array.from(markedForReview),
+          timeLeft
+        };
+      
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }, [
+        currentIndex,
+        answers,
+        skipped,
+        markedForReview,
+        timeLeft
+    ]);
+      
+    
+    useEffect(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+      
+        try {
+          const data = JSON.parse(saved);
+      
+          setCurrentIndex(data.currentIndex ?? 0);
+          setAnswers(data.answers ?? {});
+          setSkipped(new Set(data.skipped ?? []));
+          setMarkedForReview(new Set(data.markedForReview ?? []));
+          setTimeLeft(data.timeLeft ?? 600);
+        } catch (err) {
+          console.error("Failed to restore exam progress", err);
+          localStorage.removeItem(STORAGE_KEY);
+        }
+    }, []);
+           
+  
+    const formatTime = (s) => {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${sec.toString().padStart(2, "0")}`;
+    };
+  
+    /* ---------------- ANSWERS ---------------- */
+    const handleSelect = (optionIndex) => {
+      setAnswers(prev => ({
+        ...prev,
+        [question.id]: optionIndex
+      }));
+  
+      setSkipped(prev => {
+        const copy = new Set(prev);
+        copy.delete(question.id);
+        return copy;
+      });
+    };
+  
+    /* ---------------- NAVIGATION ---------------- */
+    const handleNext = () => {
+      if (currentIndex < totalQuestions - 1) {
+        setCurrentIndex(i => i + 1);
+      }
+    };
+  
+    const handlePrevious = () => {
+      if (currentIndex > 0) {
+        setCurrentIndex(i => i - 1);
+      }
+    };
+  
+    const handleSkip = () => {
+      setSkipped(prev => new Set(prev).add(question.id));
+      handleNext();
+    };
+
+    const handleMarkForReview = () => {
+        setMarkedForReview(prev => {
+          const copy = new Set(prev);
+          if (copy.has(question.id)) {
+            copy.delete(question.id); // toggle off
+          } else {
+            copy.add(question.id);
+          }
+          return copy;
+        });
+      
+        // Move to next question automatically (standard exam behavior)
+        handleNext();
+      };
+      
+  
+    const jumpToQuestion = (index) => {
+      setCurrentIndex(index);
+    };
+  
+    /* ---------------- STATUS ---------------- */
+    const getStatus = (q, index) => {
+        if (index === currentIndex) return "current";
+        if (markedForReview.has(q.id)) return "marked";
+        if (answers[q.id] !== undefined) return "answered";
+        if (skipped.has(q.id)) return "skipped";
+        return "notVisited";
+    };      
+  
+    /* ---------------- SCORE ---------------- */
+    const calculateScore = () => {
+      let score = 0;
+      mockQuestions.forEach(q => {
+        if (answers[q.id] === q.correctOption) score++;
+      });
+      return score;
+    };
+  
+    const handleSubmit = () => {
+        if (isSubmitted) return; // prevents double submit
+
+        setIsSubmitted(true);
+        localStorage.removeItem(STORAGE_KEY);
+      
+        navigate("/result", {
+          state: {
+            answers,
+            skipped: Array.from(skipped),
+            markedForReview: Array.from(markedForReview),
+            score: calculateScore(),
+            questions: mockQuestions
+          }
+        });
+      };           
+  
+    /* ---------------- PROGRESS ---------------- */
+    const answeredCount = Object.keys(answers).length;
+    const progressPercent = Math.round(
+      (answeredCount / totalQuestions) * 100
+    );
+     
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
-  
+
         {/* Top Navigation Bar */}
         <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
@@ -22,7 +194,7 @@ export default function Quiz() {
                 </svg>
               </div>
               <h2 className="text-lg font-bold leading-tight tracking-tight">
-                ExamArena - Mock Test 04
+                ExamArena - Mock Test
               </h2>
             </div>
   
@@ -33,7 +205,7 @@ export default function Quiz() {
                   timer
                 </span>
                 <span className="text-red-600 dark:text-red-400 font-bold text-lg tabular-nums">
-                  45:12
+                {formatTime(timeLeft)}
                 </span>
               </div>
   
@@ -43,7 +215,7 @@ export default function Quiz() {
                   Progress
                 </span>
                 <span className="text-slate-900 dark:text-slate-100 font-bold">
-                  3 / 10
+                {currentIndex + 1} / {totalQuestions}
                 </span>
               </div>
             </div>
@@ -62,13 +234,13 @@ export default function Quiz() {
                   Total Completion
                 </span>
                 <span className="text-sm font-bold text-primary dark:text-blue-400">
-                  30%
+                {progressPercent}%
                 </span>
               </div>
               <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full"
-                  style={{ width: "30%" }}
+                  style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
@@ -79,61 +251,36 @@ export default function Quiz() {
                 Reasoning &amp; Logic
               </div>
   
-              <h1 className="text-2xl font-bold mb-6">Question 3</h1>
+              <h1 className="text-2xl font-bold mb-6">Question {currentIndex + 1}</h1>
   
               <p className="text-lg leading-relaxed text-slate-800 dark:text-slate-200 mb-8">
-                If A + B means A is the brother of B; A - B means A is the sister of B
-                and A * B means A is the father of B. Which of the following means
-                that C is the son of M?
+              {question.question}
               </p>
   
               {/* Options */}
               <div className="space-y-4">
-                <label className="group relative flex items-center p-5 border-2 border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-primary/40 transition-all bg-white dark:bg-slate-900 shadow-sm">
-                  <input
-                    type="radio"
-                    name="quiz-option"
-                    className="w-5 h-5 text-primary border-slate-300 focus:ring-primary dark:bg-slate-800 dark:border-slate-700"
-                  />
-                  <span className="ml-4 text-slate-700 dark:text-slate-300 font-medium">
-                    M * N - C + F
-                  </span>
-                </label>
-  
-                <label className="group relative flex items-center p-5 border-2 border-primary rounded-xl cursor-pointer bg-primary/5 dark:bg-primary/10 transition-all shadow-sm ring-1 ring-primary">
-                  <input
-                    type="radio"
-                    name="quiz-option"
-                    checked
-                    className="w-5 h-5 text-primary border-slate-300 focus:ring-primary dark:bg-slate-800 dark:border-slate-700"
-                  />
-                  <span className="ml-4 text-slate-900 dark:text-white font-semibold">
-                    F - C + N * M
-                  </span>
-                </label>
-  
-                <label className="group relative flex items-center p-5 border-2 border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-primary/40 transition-all bg-white dark:bg-slate-900 shadow-sm">
-                  <input
-                    type="radio"
-                    name="quiz-option"
-                    className="w-5 h-5 text-primary border-slate-300 focus:ring-primary dark:bg-slate-800 dark:border-slate-700"
-                  />
-                  <span className="ml-4 text-slate-700 dark:text-slate-300 font-medium">
-                    N + M - F * C
-                  </span>
-                </label>
-  
-                <label className="group relative flex items-center p-5 border-2 border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-primary/40 transition-all bg-white dark:bg-slate-900 shadow-sm">
-                  <input
-                    type="radio"
-                    name="quiz-option"
-                    className="w-5 h-5 text-primary border-slate-300 focus:ring-primary dark:bg-slate-800 dark:border-slate-700"
-                  />
-                  <span className="ml-4 text-slate-700 dark:text-slate-300 font-medium">
-                    M * C - N + F
-                  </span>
-                </label>
-              </div>
+            {question.options.map((opt, i) => (
+              <label
+                key={i}
+                className={`flex items-center p-5 border-2 rounded-xl cursor-pointer ${
+                  answers[question.id] === i
+                    ? "border-primary bg-primary/5"
+                    : "border-slate-200"
+                }`}
+              >
+                <input
+                type="radio"
+                name={`q-${question.id}`}
+                checked={answers[question.id] === i}
+                onChange={() => handleSelect(i)}
+                disabled={isSubmitted} 
+                className={isSubmitted ? "opacity-50 cursor-not-allowed" : ""}
+                />
+
+                <span className="ml-4">{opt}</span>
+              </label>
+            ))}
+          </div>
             </div>
           </div>
   
@@ -145,18 +292,30 @@ export default function Quiz() {
               </h3>
   
               <div className="grid grid-cols-5 gap-3">
-                <button className="aspect-square rounded-lg bg-emerald-500 text-white font-bold">1</button>
-                <button className="aspect-square rounded-lg bg-emerald-500 text-white font-bold">2</button>
-                <button className="aspect-square rounded-lg bg-primary text-white font-bold ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900">3</button>
-                <button className="aspect-square rounded-lg bg-amber-400 text-white font-bold">4</button>
-                {[5,6,7,8,9,10].map(n => (
-                  <button
-                    key={n}
-                    className="aspect-square rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold border border-slate-200 dark:border-slate-700"
-                  >
-                    {n}
-                  </button>
-                ))}
+              {mockQuestions.map((q, i) => {
+              const status = getStatus(q, i);
+              const base =
+                "aspect-square rounded-lg font-bold text-sm";
+
+                const map = {
+                    answered: "bg-emerald-500 text-white",
+                    marked: "bg-purple-500 text-white",
+                    skipped: "bg-amber-400 text-white",
+                    current: "bg-primary text-white",
+                    notVisited: "bg-slate-100 text-slate-400"
+                };
+                  
+
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => jumpToQuestion(i)}
+                  className={`${base} ${map[status]}`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
               </div>
   
               {/* Legend */}
@@ -174,12 +333,17 @@ export default function Quiz() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="size-4 bg-amber-400 rounded-sm" />
-                  <span className="text-sm">Marked for Review</span>
+                  <span className="text-sm">Skipped</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="size-4 bg-slate-200 dark:bg-slate-700 rounded-sm" />
                   <span className="text-sm">Not Visited</span>
                 </div>
+                <div className="flex items-center gap-3">
+                  <div className="size-4 bg-purple-500 rounded-sm" />
+                  <span className="text-sm">Marked for Review</span>
+                </div>
+
               </div>
             </div>
   
@@ -206,25 +370,50 @@ export default function Quiz() {
         <footer className="h-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl">
           <div className="max-w-[1440px] mx-auto h-full px-8 flex items-center justify-between">
             <div className="flex gap-4">
-              <button className="px-6 h-11 rounded-lg border font-bold flex items-center">
+              <button className={`px-6 h-11 rounded-lg border font-bold flex items-center ${
+                markedForReview.has(question.id)
+                    ? "border-purple-500 text-purple-600"
+                    : ""
+                }
+                ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={isSubmitted}
+                onClick={handleMarkForReview}>
                 <span className="material-symbols-outlined mr-2">bookmark</span>
                 Mark for Review
               </button>
-              <button className="px-6 h-11 rounded-lg border font-bold">
+              
+              <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handleSkip}>
                 Skip Question
               </button>
             </div>
   
             <div className="flex gap-4">
-              <button className="px-6 h-11 rounded-lg border font-bold">
+              <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handlePrevious}>
                 Previous
               </button>
-              <button className="px-8 h-11 rounded-lg bg-primary text-white font-bold flex items-center">
-                Submit &amp; Next
-                <span className="material-symbols-outlined ml-2">
-                  arrow_forward
-                </span>
-              </button>
+
+              {currentIndex === totalQuestions - 1 ? (
+                <button
+                  className="px-8 h-11 rounded-lg bg-primary text-white font-bold flex items-center"
+                  onClick={handleSubmit}
+                >
+                  Submit Exam
+                  <span className="material-symbols-outlined ml-2">
+                    check_circle
+                  </span>
+                </button>
+              ) : (
+                <button
+                  className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={isSubmitted}
+                  onClick={handleNext}
+                >
+                  Next
+                  <span className="material-symbols-outlined ml-2">
+                    arrow_forward
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </footer>

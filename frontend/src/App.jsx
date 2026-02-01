@@ -1,13 +1,23 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import ExamSelection from "./pages/ExamSelection";
+import Login from "./pages/Login";
+import CategorySelection from "./pages/CategorySelection";
+import Instructions from "./pages/Instructions";
+import Quiz from "./pages/Quiz";
+import Result from "./pages/Result";
+import Review from "./pages/Review";
+import Admin from "./pages/Admin";
 
-export default function App() {
+function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <h1 className="text-4xl font-bold text-blue-600">
-        Tailwind is working 🚀
-      </h1>
-    </div>
+    // <Login />
+    // <ExamSelection />
+    // <CategorySelection />
+    // <Instructions />
+    // <Quiz />
+    // <Result />
+    // <Review />
+    <Admin />
   );
 }
+
+export default App;

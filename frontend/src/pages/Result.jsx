@@ -1,10 +1,44 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function Result() {
-    const { state } = useLocation();
-    const { score, questions } = state;
+  const navigate = useNavigate();
+  const { state } = useLocation();
 
-    console.log(score, questions);
+  if (!state) {
+    navigate("/exams");
+    return null;
+  }
+
+  const {
+    answers,
+    skipped,
+    markedForReview,
+    score,
+    timeTaken,
+    totalTime,
+    questions
+  } = state;
+
+  const totalQuestions = questions.length;
+
+  const correct = score;
+  const attempted = Object.keys(answers).length;
+  const skippedCount = skipped.length;
+  const markedCount = markedForReview.length;
+  const wrong = attempted - correct;
+  const accuracy = attempted === 0 ? 0 : Math.round((correct / attempted) * 100);
+  const timeUsed = totalTime - timeTaken;
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const timeEfficiencyPercent = Math.min(
+    100,
+    Math.round((timeUsed / totalTime) * 100)
+  );
 
     return (
       <div className="bg-background-light dark:bg-background-dark text-[#0f0f1a] dark:text-white min-h-screen">
@@ -104,7 +138,7 @@ export default function Result() {
               {/* Score Hero Card */}
               <div className="bg-white dark:bg-[#1a1a2e] rounded-xl border border-[#d2d2e5] dark:border-[#2d2d45] p-8 flex flex-col md:flex-row items-center gap-10">
                 <div className="relative flex items-center justify-center">
-                  <svg className="size-48 transform -rotate-90">
+                  <svg className="size-48 transform ">
                     <circle
                       className="text-gray-200 dark:text-gray-800"
                       cx="96"
@@ -127,9 +161,9 @@ export default function Result() {
                     />
                   </svg>
   
-                  <div className="absolute flex flex-col items-center rotate-90">
+                  <div className="absolute flex flex-col items-center">
                     <span className="text-4xl font-black text-[#0f0f1a] dark:text-white">
-                      78%
+                      {accuracy}%
                     </span>
                     <span className="text-xs font-bold text-[#555591] dark:text-gray-400 uppercase tracking-widest">
                       Accuracy
@@ -143,10 +177,9 @@ export default function Result() {
                       Your Total Score
                     </p>
                     <h3 className="text-6xl font-black text-primary dark:text-white leading-none">
-                      145
+                      {correct}
                       <span className="text-2xl text-[#555591] dark:text-gray-500 font-normal">
-                        {" "}
-                        / 200
+                        / {totalQuestions}
                       </span>
                     </h3>
                   </div>
@@ -165,7 +198,7 @@ export default function Result() {
               </div>
   
               {/* Metrics Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a1a2e] border border-[#d2d2e5] dark:border-[#2d2d45]">
                   <div className="flex justify-between items-start">
                     <p className="text-[#555591] dark:text-gray-400 text-sm font-medium">
@@ -176,12 +209,12 @@ export default function Result() {
                     </span>
                   </div>
                   <p className="text-[#0f0f1a] dark:text-white text-3xl font-bold">
-                      78
+                      {correct}
                   </p>
                   <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#078841]"
-                      style={{ width: "78%" }}
+                      style={{ width: `${(correct / totalQuestions) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -196,12 +229,12 @@ export default function Result() {
                     </span>
                   </div>
                   <p className="text-[#0f0f1a] dark:text-white text-3xl font-bold">
-                      12
+                    {wrong}
                   </p>
                   <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#d32f2f]"
-                      style={{ width: "12%" }}
+                      style={{ width: `${(wrong / totalQuestions) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -216,12 +249,32 @@ export default function Result() {
                     </span>
                   </div>
                   <p className="text-[#0f0f1a] dark:text-white text-3xl font-bold">
-                      10
+                    {skippedCount}
                   </p>
                   <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#555591]"
-                      style={{ width: "10%" }}
+                      style={{ width: `${(skippedCount / totalQuestions) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-[#1a1a2e] border border-[#d2d2e5] dark:border-[#2d2d45]">
+                  <div className="flex justify-between items-start">
+                    <p className="text-[#555591] dark:text-gray-400 text-sm font-medium">
+                      Marked
+                    </p>
+                    <span className="material-symbols-outlined text-[#555591]">
+                      do_not_disturb_on
+                    </span>
+                  </div>
+                  <p className="text-[#0f0f1a] dark:text-white text-3xl font-bold">
+                    {markedCount}
+                  </p>
+                  <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#555591]"
+                      style={{ width: `${(markedCount / totalQuestions) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -242,13 +295,13 @@ export default function Result() {
                         Time Efficiency
                       </p>
                       <p className="text-[#0f0f1a] dark:text-white text-sm font-normal">
-                        54:12 mins / 60:00 mins
+                        {formatTime(timeTaken)} / {formatTime(totalTime)}
                       </p>
                     </div>
                     <div className="rounded-full bg-[#d2d2e5] dark:bg-gray-800">
                       <div
                         className="h-2 rounded-full bg-primary"
-                        style={{ width: "90%" }}
+                        style={{ width: `${timeEfficiencyPercent}%` }}
                       />
                     </div>
                     <p className="text-[#555591] dark:text-gray-400 text-sm">
@@ -336,7 +389,7 @@ export default function Result() {
               </h4>
 
               <div className="flex flex-col gap-4">
-                <button className="w-full flex items-center justify-between px-5 py-4 rounded-lg bg-primary text-white font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                <button onClick={() => navigate("/review", { state })} className="w-full flex items-center justify-between px-5 py-4 rounded-lg bg-primary text-white font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined">
                       assignment_turned_in
@@ -348,7 +401,7 @@ export default function Result() {
                   </span>
                 </button>
 
-                <button className="w-full flex items-center justify-between px-5 py-4 rounded-lg border-2 border-primary text-primary dark:text-blue-400 font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                <button onClick={() => navigate("/exams")} className="w-full flex items-center justify-between px-5 py-4 rounded-lg border-2 border-primary text-primary dark:text-blue-400 font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined">
                       restart_alt
@@ -392,15 +445,9 @@ export default function Result() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </main>
-
-      <button onClick={() => navigate("/review", { state })}>
-  Review Answers
-</button>
-
 
       {/* Footer Space */}
       <footer className="mt-12 py-8 border-t border-[#e9e9f2] dark:border-[#2d2d45] text-center text-[#555591] dark:text-gray-500 text-sm">

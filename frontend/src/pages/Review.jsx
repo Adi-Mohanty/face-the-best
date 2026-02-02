@@ -1,4 +1,46 @@
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import QuestionRenderer from "../components/questions/QuestionRenderer";
+
 export default function Review() {
+  const navigate = useNavigate();
+  const { state } = useLocation();
+
+  if (!state) {
+    navigate("/exams");
+    return null;
+  }
+
+  const { questions, answers } = state;
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const question = questions[currentIndex];
+  const userAnswer = answers[question.id];
+  const isCorrect = userAnswer === question.correctOption;
+  const totalQuestions = questions.length;
+
+  const goNext = () => {
+    if (currentIndex < totalQuestions - 1) {
+      setCurrentIndex(i => i + 1);
+    }
+  };
+
+  const goPrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(i => i - 1);
+    }
+  };
+
+  const jumpToQuestion = (index) => {
+    setCurrentIndex(index);
+  };
+
+  const getQuestionStatus = (q) => {
+    if (answers[q.id] === undefined) return "unattempted";
+    if (answers[q.id] === q.correctOption) return "correct";
+    return "incorrect";
+  };
+
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-[#0f0f1a] dark:text-white">
   
@@ -88,7 +130,7 @@ export default function Review() {
                 <div className="flex flex-wrap justify-between items-start gap-4">
                   <div className="flex flex-col gap-1">
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                      Question 14 of 100
+                      Question {currentIndex + 1} of {totalQuestions}
                     </h1>
                     <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
                       Subject:{" "}
@@ -99,13 +141,33 @@ export default function Review() {
                   </div>
   
                   <div className="flex flex-col items-end gap-2">
-                    <span className="px-3 py-1 rounded-full bg-error-bg text-error-border text-sm font-bold border border-error-border flex items-center gap-1">
+                    {/* <span className="px-3 py-1 rounded-full bg-error-bg text-error-border text-sm font-bold border border-error-border flex items-center gap-1">
                       <span className="material-symbols-outlined text-[18px]">
                         close
                       </span>
                       Incorrect
+                    </span> */}
+
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1 ${
+                        isCorrect
+                          ? "bg-success-bg text-success-border border-success-border"
+                          : userAnswer === undefined
+                          ? "bg-gray-100 text-gray-500 border-gray-300"
+                          : "bg-error-bg text-error-border border-error-border"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isCorrect ? "check" : userAnswer === undefined ? "help" : "close"}
+                      </span>
+                      {isCorrect
+                        ? "Correct"
+                        : userAnswer === undefined
+                        ? "Unattempted"
+                        : "Incorrect"}
                     </span>
-                    <button className="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
+
+                    <button onClick={() => navigate(-1)} className="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
                       <span className="material-symbols-outlined text-[18px]">
                         arrow_back
                       </span>
@@ -151,156 +213,17 @@ export default function Review() {
               {/* Question Card */}
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d2d2e5] dark:border-white/10 overflow-hidden">
                 <div className="p-8">
-                  <p className="text-lg md:text-xl font-medium leading-relaxed mb-8">
-                    With reference to the Constitution of India, consider the
-                    following statements regarding the 'Doctrine of Pleasure':
-                  </p>
-  
-                  <div className="space-y-3 mb-8">
-                    <p className="flex gap-4">
-                      <span className="font-bold">1.</span>
-                      In India, the 'Doctrine of Pleasure' is subject to
-                      constitutional limitations.
-                    </p>
-                    <p className="flex gap-4">
-                      <span className="font-bold">2.</span>
-                      Article 311 of the Constitution provides safeguards to civil
-                      servants against arbitrary dismissal.
-                    </p>
-                    <p className="flex gap-4">
-                      <span className="font-bold">3.</span>
-                      The doctrine applies only to the civil services of the Union
-                      and not to the states.
-                    </p>
-                  </div>
-  
-                  <p className="font-bold mb-6">
-                    Which of the statements given above is/are correct?
-                  </p>
-  
-                  {/* Options Grid */}
-                  <div className="grid grid-cols-1 gap-4">
-  
-                    {/* Correct Option */}
-                    <div className="flex items-center justify-between p-4 rounded-lg border-2 border-success-border bg-success-bg/30">
-                      <div className="flex items-center gap-4">
-                        <div className="size-8 rounded-full bg-success-border text-white flex items-center justify-center font-bold">
-                          A
-                        </div>
-                        <p className="text-base font-medium">
-                          1 and 2 only
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 text-success-border font-bold">
-                        <span className="text-xs uppercase">
-                          Correct Answer
-                        </span>
-                        <span className="material-symbols-outlined">
-                          check_circle
-                        </span>
-                      </div>
-                    </div>
-  
-                    {/* Incorrect User Selection */}
-                    <div className="flex items-center justify-between p-4 rounded-lg border-2 border-error-border bg-error-bg/30">
-                      <div className="flex items-center gap-4">
-                        <div className="size-8 rounded-full bg-error-border text-white flex items-center justify-center font-bold">
-                          B
-                        </div>
-                        <p className="text-base font-medium">
-                          2 and 3 only
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 text-error-border font-bold">
-                        <span className="text-xs uppercase">
-                          Your Choice
-                        </span>
-                        <span className="material-symbols-outlined">
-                          cancel
-                        </span>
-                      </div>
-                    </div>
-  
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-[#d2d2e5] dark:border-white/10 bg-white dark:bg-gray-800">
-                      <div className="flex items-center gap-4">
-                        <div className="size-8 rounded-full bg-[#e9e9f2] dark:bg-gray-700 text-[#0f0f1a] dark:text-white flex items-center justify-center font-bold">
-                          C
-                        </div>
-                        <p className="text-base font-medium">
-                          1 and 3 only
-                        </p>
-                      </div>
-                    </div>
-  
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-[#d2d2e5] dark:border-white/10 bg-white dark:bg-gray-800">
-                      <div className="flex items-center gap-4">
-                        <div className="size-8 rounded-full bg-[#e9e9f2] dark:bg-gray-700 text-[#0f0f1a] dark:text-white flex items-center justify-center font-bold">
-                          D
-                        </div>
-                        <p className="text-base font-medium">
-                          1, 2 and 3
-                        </p>
-                      </div>
-                    </div>
-  
-                  </div>
-                </div>
-  
-                {/* Explanation Card */}
-                <div className="border-t border-[#d2d2e5] dark:border-white/10 bg-primary/5 p-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold flex items-center gap-2 text-primary dark:text-blue-400">
-                      <span className="material-symbols-outlined">
-                        lightbulb
-                      </span>
-                      Detailed Explanation
-                    </h3>
-                    <button className="text-primary font-medium hover:underline">
-                      Download PDF
-                    </button>
-                  </div>
-  
-                  <div className="prose dark:prose-invert max-w-none space-y-4 text-sm md:text-base leading-relaxed text-[#444] dark:text-gray-300">
-                    <p>
-                      <strong className="text-[#0f0f1a] dark:text-white">
-                        Analysis of Statement 1:
-                      </strong>{" "}
-                      Correct. In India, the 'Doctrine of Pleasure' is not absolute
-                      as it is in English law. It is subject to constitutional
-                      limitations provided under Article 311.
-                    </p>
-  
-                    <p>
-                      <strong className="text-[#0f0f1a] dark:text-white">
-                        Analysis of Statement 2:
-                      </strong>{" "}
-                      Correct. Article 311 provides two main safeguards.
-                    </p>
-  
-                    <p>
-                      <strong className="text-[#0f0f1a] dark:text-white">
-                        Analysis of Statement 3:
-                      </strong>{" "}
-                      Incorrect. The doctrine applies to both the civil services of
-                      the Union and the States.
-                    </p>
-  
-                    <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg border-l-4 border-primary">
-                      <h4 className="font-bold text-primary mb-2">
-                        Key Concept: Article 310 &amp; 311
-                      </h4>
-                      <p>
-                        Article 310 talks about pleasure, while Article 311 ensures
-                        safeguards.
-                      </p>
-                    </div>
-                  </div>
+                  <QuestionRenderer
+                    question={question}
+                    userAnswer={answers[question.id]}
+                    mode="review"
+                  /> 
                 </div>
               </div>
   
             {/* Bottom Navigation (Sticky behavior simulated) */}
             <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-[#d2d2e5] dark:border-white/10 flex justify-between items-center">
-              <button className="flex items-center gap-2 px-6 py-2 rounded-lg bg-[#e9e9f2] dark:bg-gray-700 text-[#0f0f1a] dark:text-white font-bold hover:bg-[#d2d2e5] transition-colors">
+              <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center gap-2 px-6 py-2 rounded-lg bg-[#e9e9f2] dark:bg-gray-700 text-[#0f0f1a] dark:text-white font-bold hover:bg-[#d2d2e5] transition-colors">
                 <span className="material-symbols-outlined">
                   arrow_back_ios
                 </span>
@@ -322,7 +245,7 @@ export default function Review() {
                 </button>
               </div>
 
-              <button className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-white font-bold hover:bg-opacity-90 transition-colors">
+              <button onClick={goNext} disabled={currentIndex === totalQuestions - 1} className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-white font-bold hover:bg-opacity-90 transition-colors">
                 Next
                 <span className="material-symbols-outlined">
                   arrow_forward_ios
@@ -346,51 +269,27 @@ export default function Review() {
               </div>
 
               <div className="grid grid-cols-5 gap-2">
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  1
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  2
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  3
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  4
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-error-border/20 text-error-border font-bold text-sm cursor-pointer hover:bg-error-border/30 transition-colors">
-                  5
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  6
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-[#0f0f1a] dark:text-white font-bold text-sm cursor-pointer hover:bg-gray-200 transition-colors">
-                  7
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-[#0f0f1a] dark:text-white font-bold text-sm cursor-pointer hover:bg-gray-200 transition-colors">
-                  8
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-[#0f0f1a] dark:text-white font-bold text-sm cursor-pointer hover:bg-gray-200 transition-colors">
-                  9
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-[#0f0f1a] dark:text-white font-bold text-sm cursor-pointer hover:bg-gray-200 transition-colors">
-                  10
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  11
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  12
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-success-border/20 text-success-border font-bold text-sm cursor-pointer hover:bg-success-border/30 transition-colors">
-                  13
-                </div>
-                <div className="size-10 flex items-center justify-center rounded ring-2 ring-primary bg-error-border/20 text-error-border font-bold text-sm">
-                  14
-                </div>
-                <div className="size-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-[#0f0f1a] dark:text-white font-bold text-sm cursor-pointer hover:bg-gray-200 transition-colors">
-                  15
-                </div>
+              {questions.map((q, i) => {
+                  const status = getQuestionStatus(q);
+
+                  const colorMap = {
+                    correct: "bg-success-border/20 text-success-border",
+                    incorrect: "bg-error-border/20 text-error-border",
+                    unattempted: "bg-gray-200 text-gray-500"
+                  };
+
+                  return (
+                    <div
+                      key={q.id}
+                      onClick={() => jumpToQuestion(i)}
+                      className={`size-10 flex items-center justify-center rounded font-bold text-sm cursor-pointer transition-colors ${
+                        colorMap[status]
+                      } ${i === currentIndex ? "ring-2 ring-primary" : ""}`}
+                    >
+                      {i + 1}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="border-t border-[#d2d2e5] dark:border-white/10 pt-4 space-y-3">
@@ -413,36 +312,8 @@ export default function Review() {
                   </span>
                 </div>
               </div>
-
-              <div className="flex flex-col gap-2 mt-2">
-                <button className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#e9e9f2] dark:bg-gray-800 hover:bg-primary/10 transition-colors">
-                  <span className="text-sm font-medium">
-                    Question 1-20
-                  </span>
-                  <span className="material-symbols-outlined text-[18px]">
-                    expand_more
-                  </span>
-                </button>
-                <button className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#e9e9f2] dark:hover:bg-gray-800 transition-colors">
-                  <span className="text-sm font-medium">
-                    Question 21-40
-                  </span>
-                  <span className="material-symbols-outlined text-[18px]">
-                    chevron_right
-                  </span>
-                </button>
-              </div>
-
-              <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-primary text-primary text-sm font-bold hover:bg-primary/5">
-                <span className="material-symbols-outlined text-[20px]">
-                  report
-                </span>
-                Report Issue
-              </button>
-
             </div>
           </aside>
-
         </div>
       </main>
 

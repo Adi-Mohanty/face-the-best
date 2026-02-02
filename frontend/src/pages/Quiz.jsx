@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { mockQuestions } from "../data/mockQuestions";
+import QuestionRenderer from "../components/questions/QuestionRenderer";
 
 const STORAGE_KEY = "exam-progress";
+const TOTAL_TIME = 600;
 
 export default function Quiz() {
     const navigate = useNavigate();
@@ -16,6 +18,8 @@ export default function Quiz() {
   
     const question = mockQuestions[currentIndex];
     const totalQuestions = mockQuestions.length;
+
+    const timeTaken = TOTAL_TIME - timeLeft;
   
     /* ---------------- TIMER ---------------- */
     useEffect(() => {
@@ -149,21 +153,26 @@ export default function Quiz() {
     };
   
     const handleSubmit = () => {
-        if (isSubmitted) return; // prevents double submit
-
-        setIsSubmitted(true);
-        localStorage.removeItem(STORAGE_KEY);
-      
-        navigate("/result", {
-          state: {
-            answers,
-            skipped: Array.from(skipped),
-            markedForReview: Array.from(markedForReview),
-            score: calculateScore(),
-            questions: mockQuestions
-          }
-        });
-      };           
+      if (isSubmitted) return;
+    
+      setIsSubmitted(true);
+    
+      const timeTaken = TOTAL_TIME - timeLeft;
+    
+      localStorage.removeItem(STORAGE_KEY);
+    
+      navigate("/result", {
+        state: {
+          answers,
+          skipped: Array.from(skipped),
+          markedForReview: Array.from(markedForReview),
+          score: calculateScore(),
+          timeTaken,              
+          totalTime: TOTAL_TIME,  
+          questions: mockQuestions
+        }
+      });
+    };              
   
     /* ---------------- PROGRESS ---------------- */
     const answeredCount = Object.keys(answers).length;
@@ -196,6 +205,10 @@ export default function Quiz() {
               <h2 className="text-lg font-bold leading-tight tracking-tight">
                 ExamArena - Mock Test
               </h2>
+            </div>
+
+            <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary dark:text-blue-400 rounded text-xs font-bold uppercase tracking-wider">
+              Reasoning &amp; Logic
             </div>
   
             <div className="flex items-center gap-6">
@@ -247,40 +260,14 @@ export default function Quiz() {
   
             {/* Question Area */}
             <div className="max-w-3xl">
-              <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary dark:text-blue-400 rounded text-xs font-bold uppercase mb-4 tracking-wider">
-                Reasoning &amp; Logic
-              </div>
-  
               <h1 className="text-2xl font-bold mb-6">Question {currentIndex + 1}</h1>
   
-              <p className="text-lg leading-relaxed text-slate-800 dark:text-slate-200 mb-8">
-              {question.question}
-              </p>
-  
-              {/* Options */}
-              <div className="space-y-4">
-            {question.options.map((opt, i) => (
-              <label
-                key={i}
-                className={`flex items-center p-5 border-2 rounded-xl cursor-pointer ${
-                  answers[question.id] === i
-                    ? "border-primary bg-primary/5"
-                    : "border-slate-200"
-                }`}
-              >
-                <input
-                type="radio"
-                name={`q-${question.id}`}
-                checked={answers[question.id] === i}
-                onChange={() => handleSelect(i)}
-                disabled={isSubmitted} 
-                className={isSubmitted ? "opacity-50 cursor-not-allowed" : ""}
-                />
-
-                <span className="ml-4">{opt}</span>
-              </label>
-            ))}
-          </div>
+              <QuestionRenderer
+                question={question}
+                userAnswer={answers[question.id]}
+                onSelect={handleSelect}
+                mode="exam"
+              />           
             </div>
           </div>
   

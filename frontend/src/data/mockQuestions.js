@@ -78,8 +78,6 @@ export const mockQuestions = [
     subject: "Indian Polity"
   },
 
-  /* ---------------- INTEGER / NUMERIC ---------------- */
-
   /* ---------------- PASSAGE BASED (FUTURE READY) ---------------- */
   {
     id: 6,

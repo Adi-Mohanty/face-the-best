@@ -52,7 +52,7 @@ export default function Result() {
                   <span className="material-symbols-outlined">auto_stories</span>
                 </div>
                 <h2 className="text-[#0f0f1a] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                  ExamArena
+                  Face The Best
                 </h2>
               </div>
   
@@ -452,7 +452,7 @@ export default function Result() {
       {/* Footer Space */}
       <footer className="mt-12 py-8 border-t border-[#e9e9f2] dark:border-[#2d2d45] text-center text-[#555591] dark:text-gray-500 text-sm">
         <p>
-          © 2024 ExamArena. All exam materials are subject to copyright.
+          © 2024 Face The Best. All exam materials are subject to copyright.
         </p>
       </footer>
     </div>

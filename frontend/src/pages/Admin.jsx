@@ -13,7 +13,7 @@ export default function Admin() {
                 </div>
                 <div className="flex flex-col">
                   <h1 className="text-[#0f0f1a] dark:text-white text-lg font-bold leading-tight tracking-tight">
-                    ExamArena
+                    Face The Best
                   </h1>
                   <p className="text-[#555591] dark:text-gray-400 text-xs font-medium">
                     Admin Panel

@@ -1,4 +1,4 @@
-export default function CategorySelection() {
+export default function SubjectSelection() {
     return (
       <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#0f0f1a] dark:text-white transition-colors duration-200">
   
@@ -16,7 +16,7 @@ export default function CategorySelection() {
                 </svg>
               </div>
               <h1 className="text-[#0f0f1a] dark:text-white text-xl font-bold leading-tight tracking-tight">
-                ExamArena
+                Face The Best
               </h1>
             </div>
   
@@ -65,7 +65,7 @@ export default function CategorySelection() {
             </a>
             <span className="text-xs">/</span>
             <span className="text-[#0f0f1a] dark:text-white text-sm font-semibold">
-              Select Category
+              Select Subject
             </span>
           </nav>
   
@@ -76,7 +76,7 @@ export default function CategorySelection() {
                 Choose Your Subject
               </h2>
               <p className="text-[#555591] dark:text-gray-400 text-lg">
-                Select a category to begin your personalized practice session for the current exam tier.
+                Select a subject to begin your personalized practice session for the current exam tier.
               </p>
             </div>
   
@@ -86,7 +86,7 @@ export default function CategorySelection() {
             </button>
           </div>
   
-          {/* Category Grid */}
+          {/* Subject Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
   
             {/* Reasoning */}
@@ -225,7 +225,7 @@ export default function CategorySelection() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-[#0f0f1a] dark:text-white text-lg font-bold">
-                    Questions will be from selected category only
+                    Questions will be from selected subject only
                   </p>
                   <p className="text-[#555591] dark:text-gray-400 text-base">
                     Your selection:{" "}
@@ -253,7 +253,7 @@ export default function CategorySelection() {
         {/* Footer */}
         <footer className="mt-12 py-8 border-t border-[#e9e9f2] dark:border-gray-800">
           <div className="max-w-[1200px] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[#555591] dark:text-gray-500">
-            <p>© 2024 ExamArena. All rights reserved.</p>
+            <p>© 2024 Face The Best. All rights reserved.</p>
             <div className="flex gap-6">
               <a className="hover:text-primary" href="#">Guidelines</a>
               <a className="hover:text-primary" href="#">Syllabus</a>

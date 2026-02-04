@@ -1,4 +1,63 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup
+} from "firebase/auth";
+import { auth } from "../services/firebase";
+
 export default function Login() {
+  const navigate = useNavigate();
+
+  const [authMode, setAuthMode] = useState("login"); // login | signup
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      if (authMode === "login") {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+
+      navigate("/exams");
+    } catch (err) {
+      mapFirebaseError(err.code);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      navigate("/exams");
+    } catch (err) {
+      mapFirebaseError(err.code);
+    }
+  };
+
+  const mapFirebaseError = (code) => {
+    const messages = {
+      "auth/user-not-found": "No account found with this email.",
+      "auth/wrong-password": "Incorrect password.",
+      "auth/email-already-in-use": "Email already registered.",
+      "auth/weak-password": "Password must be at least 6 characters.",
+      "auth/invalid-email": "Invalid email address."
+    };
+
+    setError(messages[code] || "Authentication failed. Try again.");
+  };
+  
     return (
       <div className="bg-background-light dark:bg-background-dark font-display min-h-screen">
         <div className="flex min-h-screen w-full flex-col lg:flex-row">
@@ -11,7 +70,7 @@ export default function Login() {
             <div className="relative z-20">
               <div className="flex items-center gap-2 text-white">
                 <span className="material-symbols-outlined text-4xl">auto_stories</span>
-                <span className="text-2xl font-black tracking-tight">ExamArena</span>
+                <span className="text-2xl font-black tracking-tight">Face The Best</span>
               </div>
             </div>
             
@@ -36,7 +95,7 @@ export default function Login() {
             </div>
             
             <div className="relative z-20 text-white/40 text-sm">
-              © 2024 ExamArena Professional. All rights reserved.
+              © 2024 Face The Best Professional. All rights reserved.
             </div>
           </div>
   
@@ -46,26 +105,62 @@ export default function Login() {
               {/* Logo for Mobile */}
               <div className="lg:hidden flex items-center gap-2 text-primary dark:text-white mb-4">
                 <span className="material-symbols-outlined text-3xl">auto_stories</span>
-                <span className="text-xl font-black">ExamArena</span>
+                <span className="text-xl font-black">Face The Best</span>
               </div>
   
               {/* Page Heading */}
               <div className="flex flex-col gap-2">
                 <h2 className="text-[#0f0f1a] dark:text-white text-3xl font-extrabold leading-tight tracking-tight">Welcome Back</h2>
-                <p className="text-[#6b6b80] dark:text-gray-400 text-base">Sign in to your ExamArena account to continue your preparation.</p>
+                <p className="text-[#6b6b80] dark:text-gray-400 text-base">Sign in to your Face The Best account to continue your preparation.</p>
               </div>
   
               {/* Segmented Buttons */}
               <div className="flex h-12 w-full items-center justify-center rounded-xl bg-[#e8e8ec] dark:bg-gray-800 p-1">
-                <label className="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-gray-700 has-[:checked]:shadow-sm has-[:checked]:text-[#0f0f1a] dark:has-[:checked]:text-white text-[#6b6b80] dark:text-gray-400 text-sm font-semibold transition-all">
-                  <span className="truncate">Login</span>
-                  <input checked className="invisible w-0" name="auth-mode" type="radio" value="Login"/>
+  
+                {/* LOGIN */}
+                <label
+                  className={`flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 text-sm font-semibold transition-all
+                    ${
+                      authMode === "login"
+                        ? "bg-white dark:bg-gray-700 shadow-sm text-[#0f0f1a] dark:text-white"
+                        : "text-[#6b6b80] dark:text-gray-400"
+                    }
+                  `}
+                >
+                  Login
+                  <input
+                    type="radio"
+                    name="auth-mode"
+                    value="login"
+                    checked={authMode === "login"}
+                    onChange={() => setAuthMode("login")}
+                    className="hidden"
+                  />
                 </label>
-                <label className="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-gray-700 has-[:checked]:shadow-sm has-[:checked]:text-[#0f0f1a] dark:has-[:checked]:text-white text-[#6b6b80] dark:text-gray-400 text-sm font-semibold transition-all">
-                  <span className="truncate">Sign Up</span>
-                  <input className="invisible w-0" name="auth-mode" type="radio" value="Sign Up"/>
+
+                {/* SIGN UP */}
+                <label
+                  className={`flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 text-sm font-semibold transition-all
+                    ${
+                      authMode === "signup"
+                        ? "bg-white dark:bg-gray-700 shadow-sm text-[#0f0f1a] dark:text-white"
+                        : "text-[#6b6b80] dark:text-gray-400"
+                    }
+                  `}
+                >
+                  Sign Up
+                  <input
+                    type="radio"
+                    name="auth-mode"
+                    value="signup"
+                    checked={authMode === "signup"}
+                    onChange={() => setAuthMode("signup")}
+                    className="hidden"
+                  />
                 </label>
+
               </div>
+
   
               {/* Form Fields */}
               <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); return false; }}>
@@ -73,7 +168,13 @@ export default function Login() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[#0f0f1a] dark:text-gray-200 text-sm font-semibold leading-normal">Email Address</label>
                   <div className="relative">
-                    <input className="form-input flex w-full rounded-xl text-[#0f0f1a] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/20 border border-[#d8d8dd] dark:border-gray-700 bg-white dark:bg-gray-900 focus:border-primary h-14 placeholder:text-[#a0a0b8] px-4 text-base font-normal" placeholder="rahul@example.com" type="email"/>
+                    <input className="form-input flex w-full rounded-xl text-[#0f0f1a] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/20 border border-[#d8d8dd] dark:border-gray-700 bg-white dark:bg-gray-900 focus:border-primary h-14 placeholder:text-[#a0a0b8] px-4 text-base font-normal" 
+                    placeholder="rahul@example.com" 
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    />
                   </div>
                 </div>
   
@@ -84,7 +185,13 @@ export default function Login() {
                     <a className="text-[#3b3ba7] dark:text-blue-400 text-xs font-bold hover:underline" href="#">Forgot Password?</a>
                   </div>
                   <div className="flex w-full items-stretch rounded-xl border border-[#d8d8dd] dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden">
-                    <input className="form-input flex w-full border-none bg-transparent h-14 text-[#0f0f1a] dark:text-white placeholder:text-[#a0a0b8] px-4 text-base font-normal focus:ring-0" placeholder="••••••••" type="password"/>
+                    <input className="form-input flex w-full border-none bg-transparent h-14 text-[#0f0f1a] dark:text-white placeholder:text-[#a0a0b8] px-4 text-base font-normal focus:ring-0"
+                    placeholder="••••••••" 
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    />
                     <button className="text-[#6b6b80] flex items-center justify-center pr-4" type="button">
                       <span className="material-symbols-outlined">visibility</span>
                     </button>
@@ -98,10 +205,25 @@ export default function Login() {
                 </div>
   
                 {/* Primary Button */}
-                <button className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 px-5 bg-[#3b3ba7] text-white text-base font-bold leading-normal tracking-normal hover:bg-[#32329a] transition-all active:scale-[0.98]">
-                  <span className="truncate">Sign In to Dashboard</span>
+                <button
+                disabled={loading}
+                onClick={handleSubmit} 
+                className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 px-5 bg-[#3b3ba7] text-white text-base font-bold leading-normal tracking-normal hover:bg-[#32329a] transition-all active:scale-[0.98]">
+                  <span className="truncate">
+                  {loading
+                  ? "Please wait..."
+                  : authMode === "login"
+                  ? "Sign In to Dashboard"
+                  : "Create Account"}
+                  </span>
                 </button>
               </form>
+
+              {error && (
+                <p className="text-red-600 text-sm font-semibold text-center">
+                  {error}
+                </p>
+              )}
   
               {/* Divider */}
               <div className="flex items-center gap-4 py-2">
@@ -112,7 +234,7 @@ export default function Login() {
   
               {/* Social Login */}
               <div className="grid grid-cols-2 gap-4">
-                <button className="flex items-center justify-center gap-2 h-12 rounded-xl border border-[#d8d8dd] dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <button onClick={handleGoogleLogin} className="flex items-center justify-center gap-2 h-12 rounded-xl border border-[#d8d8dd] dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <img alt="Google Logo" className="w-5 h-5" data-alt="Google company icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzDc_PQ0p5-HCPY0N8UmQiT3O-GXGLc3h_lPRoLNVs1FN9C7bxlSegBVjTx0snueHqyYo-gEoFu4Dyy2MvpPZrcOwfZnHsFxbGiZBouKkDPVqEn3HJTAwDVDJ-Cy_qqmND1C2uv4tl6gdbrT1UpP1VJS_IjZRdBU5pc58AAJEg_RwQYI7dZEaSoWXjzYeRz41QcP0HsEUgauAffFqGfIDZCN0-LAPvASweJ85aALEeMeiEimsszyXi9gIQpydS6AqXuvEfXY_gr8cr"/>
                   <span className="text-[#0f0f1a] dark:text-white text-sm font-semibold">Google</span>
                 </button>
@@ -124,7 +246,7 @@ export default function Login() {
   
               {/* Footer Link */}
               <p className="text-center text-[#6b6b80] dark:text-gray-400 text-sm font-medium pt-4">
-                New to ExamArena? 
+                New to Face The Best? 
                 <a className="text-[#3b3ba7] dark:text-blue-400 font-bold hover:underline ml-1" href="#">Create an account</a>
               </p>
             </div>

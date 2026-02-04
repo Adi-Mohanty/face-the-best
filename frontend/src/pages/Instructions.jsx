@@ -17,7 +17,7 @@ export default function Instructions() {
                   </svg>
                 </div>
                 <h2 className="text-[#0f0f1a] dark:text-white text-xl font-bold leading-tight tracking-tight">
-                  ExamArena
+                  Face The Best
                 </h2>
               </div>
   
@@ -181,7 +181,7 @@ export default function Instructions() {
             {/* Footer */}
             <footer className="py-10 px-10 border-t border-gray-200 dark:border-gray-800 text-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                © 2024 ExamArena. All rights reserved. Secure assessment environment.
+                © 2024 Face The Best. All rights reserved. Secure assessment environment.
               </p>
             </footer>
           </div>

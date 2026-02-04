@@ -62,7 +62,7 @@ export default function Review() {
                 </svg>
               </div>
               <h2 className="text-xl font-bold leading-tight tracking-tight">
-                ExamArena
+                Face The Best
               </h2>
             </div>
   
@@ -322,10 +322,10 @@ export default function Review() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 text-[#555591] dark:text-gray-400">
             <span className="font-bold text-lg">
-              ExamArena
+              Face The Best
             </span>
             <span className="text-sm">
-              © 2024 ExamArena. All rights reserved.
+              © 2024 Face The Best. All rights reserved.
             </span>
           </div>
 

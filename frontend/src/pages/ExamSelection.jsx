@@ -10,7 +10,7 @@ export default function ExamSelection() {
                   <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path>
                 </svg>
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-primary dark:text-white">ExamArena</h1>
+              <h1 className="text-xl font-bold tracking-tight text-primary dark:text-white">Face The Best</h1>
             </div>
             <div className="flex items-center gap-6">
               <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#555591] dark:text-gray-400">
@@ -125,7 +125,7 @@ export default function ExamSelection() {
             <a className="text-[#555591] dark:text-gray-400 text-sm hover:text-primary transition-colors" href="#">Terms of Service</a>
             <a className="text-[#555591] dark:text-gray-400 text-sm hover:text-primary transition-colors" href="#">Contact Support</a>
           </div>
-          <p className="text-[#555591] dark:text-gray-500 text-sm">© 2024 ExamArena Platform. Engineered for excellence.</p>
+          <p className="text-[#555591] dark:text-gray-500 text-sm">© 2024 Face The Best Platform. Engineered for excellence.</p>
         </footer>
   
         <style jsx>{`

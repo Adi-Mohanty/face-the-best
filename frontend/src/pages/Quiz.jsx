@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { mockQuestions } from "../data/mockQuestions";
+import { useLocation, useNavigate } from "react-router-dom";
+import { fetchQuestions } from "../services/questions";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
 
 const STORAGE_KEY = "exam-progress";
@@ -8,18 +8,35 @@ const TOTAL_TIME = 600;
 
 export default function Quiz() {
     const navigate = useNavigate();
+    const { state } = useLocation();
+    // const { selectedExam, selectedSubject } = state || {};
   
+    const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState({});
     const [skipped, setSkipped] = useState(new Set());
     const [markedForReview, setMarkedForReview] = useState(new Set());
     const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
     const [isSubmitted, setIsSubmitted] = useState(false);
-  
-    const question = mockQuestions[currentIndex];
-    const totalQuestions = mockQuestions.length;
+    const [questions, setQuestions] = useState([]);
 
-    const timeTaken = TOTAL_TIME - timeLeft;
+    const question = questions[currentIndex];
+    const totalQuestions = questions.length;
+
+    useEffect(() => {
+      const load = async () => {
+        try {
+          const data = await fetchQuestions("UPSC", "Polity");
+          console.log("Fetched questions:", data);
+          setQuestions(data);
+        } catch (e) {
+          console.error("Failed to fetch questions", e);
+        } finally {
+          setLoading(false); // ✅ THIS WAS MISSING
+        }
+      };
+      load();
+    }, []); 
   
     /* ---------------- TIMER ---------------- */
     useEffect(() => {
@@ -146,7 +163,7 @@ export default function Quiz() {
     /* ---------------- SCORE ---------------- */
     const calculateScore = () => {
       let score = 0;
-      mockQuestions.forEach(q => {
+      questions.forEach(q => {
         if (answers[q.id] === q.correctOption) score++;
       });
       return score;
@@ -169,7 +186,7 @@ export default function Quiz() {
           score: calculateScore(),
           timeTaken,              
           totalTime: TOTAL_TIME,  
-          questions: mockQuestions
+          questions
         }
       });
     };              
@@ -179,6 +196,26 @@ export default function Quiz() {
     const progressPercent = Math.round(
       (answeredCount / totalQuestions) * 100
     );
+
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-lg font-bold text-slate-500">
+            Loading questions…
+          </p>
+        </div>
+      );
+    }
+    
+    if (!questions.length) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-lg font-bold text-red-500">
+            No questions available
+          </p>
+        </div>
+      );
+    }    
      
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
@@ -203,7 +240,7 @@ export default function Quiz() {
                 </svg>
               </div>
               <h2 className="text-lg font-bold leading-tight tracking-tight">
-                ExamArena - Mock Test
+                Face The Best - Mock Test
               </h2>
             </div>
 
@@ -262,12 +299,14 @@ export default function Quiz() {
             <div className="max-w-3xl">
               <h1 className="text-2xl font-bold mb-6">Question {currentIndex + 1}</h1>
   
-              <QuestionRenderer
-                question={question}
-                userAnswer={answers[question.id]}
-                onSelect={handleSelect}
-                mode="exam"
-              />           
+              {question && (
+                <QuestionRenderer
+                  question={question}
+                  userAnswer={answers[question.id]}
+                  onSelect={handleSelect}
+                  mode="exam"
+                />
+              )}
             </div>
           </div>
   
@@ -279,7 +318,7 @@ export default function Quiz() {
               </h3>
   
               <div className="grid grid-cols-5 gap-3">
-              {mockQuestions.map((q, i) => {
+              {questions.map((q, i) => {
               const status = getStatus(q, i);
               const base =
                 "aspect-square rounded-lg font-bold text-sm";
@@ -363,7 +402,7 @@ export default function Quiz() {
                     : ""
                 }
                 ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={isSubmitted}
+                disabled={!question || isSubmitted}
                 onClick={handleMarkForReview}>
                 <span className="material-symbols-outlined mr-2">bookmark</span>
                 Mark for Review

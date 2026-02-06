@@ -19,10 +19,10 @@ export default function DevNavBar() {
         </Link>
 
         <Link
-          to="/categories"
+          to="/subjects"
           className="text-blue-600 hover:underline"
         >
-          Categories
+          Subjects
         </Link>
 
         <Link

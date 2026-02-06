@@ -26,8 +26,12 @@ module.exports = {
     "import",
   ],
   rules: {
-    "quotes": ["error", "double"],
-    "import/no-unresolved": 0,
-    "indent": ["error", 2],
-  },
+    "linebreak-style": "off",
+    "require-jsdoc": "off",
+    "object-curly-spacing": ["error", "never"],
+    "indent": "off",
+    "comma-dangle": "off",
+    "no-trailing-spaces": "off",
+    "@typescript-eslint/no-explicit-any": "off"
+  }  
 };

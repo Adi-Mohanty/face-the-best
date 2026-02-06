@@ -11,6 +11,8 @@ import Admin from "./pages/Admin";
 
 import DevNavBar from "./components/DevNavBar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminExams from "./pages/AdminExams";
+import AdminSubjects from "./pages/AdminSubjects";
 
 export default function App() {
   return (
@@ -44,7 +46,20 @@ export default function App() {
             <Review />  
           </ProtectedRoute>} />
 
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={
+          <ProtectedRoute>
+            <Admin />
+          </ProtectedRoute>} />
+
+        <Route path="/admin/exams" element={
+          <ProtectedRoute>
+            <AdminExams />
+          </ProtectedRoute>} />
+
+        <Route path="/admin/subjects" element={
+          <ProtectedRoute>
+            <AdminSubjects />
+          </ProtectedRoute>} />
       </Routes>
 
       {/* 🔧 Temporary Dev Navigation */}

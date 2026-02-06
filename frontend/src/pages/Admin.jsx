@@ -1,4 +1,133 @@
+import { signOut } from "firebase/auth";
+import { auth } from "../services/firebase";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../services/firebase";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../services/firebase";
+import { useEffect } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+
 export default function Admin() {
+  const [exam, setExam] = useState(null);
+  const [subject, setSubject] = useState("");
+  const [type, setType] = useState("MCQ");
+  const [count, setCount] = useState(25);
+  const [difficulty, setDifficulty] = useState("Medium");
+  const [exams, setExams] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+  const [activeJobId, setActiveJobId] = useState(null);
+  const [job, setJob] = useState(null);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(user => {
+      console.log("Auth state:", user);
+      setAuthReady(true);
+    });
+    return unsub;
+  }, []); 
+
+  const createJob = httpsCallable(functions, "createGenerationJob");
+  const filteredSubjects = exam? subjects.filter(sub => exam.subjects?.includes(sub.id)): [];
+  const progress = job
+  ? Math.round((job.batchesCompleted / job.batchesTotal) * 100)
+  : 0;
+
+  useEffect(() => {
+    const loadMeta = async () => {
+      const examsSnap = await getDocs(collection(db, "exams"));
+      const subjectsSnap = await getDocs(collection(db, "subjects"));
+  
+      setExams(examsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setSubjects(subjectsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    };
+  
+    loadMeta();
+  }, []); 
+  
+  useEffect(() => {
+    if (!activeJobId) return;
+  
+    const unsub = onSnapshot(
+      doc(db, "generationJobs", activeJobId),
+      (snap) => setJob(snap.data())
+    );
+  
+    return unsub;
+  }, [activeJobId]);  
+  
+  const handleGenerate = async () => {
+    setLoading(true);
+    setError("");
+  
+    try {
+      const res = await createJob({
+        exam: exam.type,
+        subject,
+        type,
+        count,
+        difficulty
+      });
+  
+      setActiveJobId(res.data.jobId);
+    } catch (e) {
+      setError("Failed to start generation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // const handleGenerate = async () => {
+  //   if (!exam || !subject || !type || !count) {
+  //     setError("Please fill all required fields");
+  //     return;
+  //   }
+
+  //   console.log("Current user:", auth.currentUser);
+  //   console.log("ID token:", await auth.currentUser?.getIdToken());
+
+  //   if (!authReady) {
+  //     setError("Auth not ready yet. Please wait 1 second and try again.");
+  //     return;
+  //   }
+
+  //   if (!auth.currentUser) {
+  //     setError("Not logged in");
+  //     return;
+  //   }
+  
+  //   setLoading(true);
+  //   setError("");
+  //   setResult(null);
+  
+  //   try {
+  //     await auth.currentUser.getIdToken(true);
+
+  //     const res = await generateQuestions({
+  //       exam: exam.type,
+  //       subject,
+  //       type,
+  //       count,
+  //       difficulty
+  //     });
+
+  //     console.log("Generated Questions: ", res.data);
+  
+  //     setResult(res.data);
+  //   } catch (err) {
+  //     console.error(err);
+  //     setError(err.message || "Generation failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+   
     return (
       <div className="bg-background-light dark:bg-background-dark font-display">
         <div className="flex h-screen overflow-hidden">
@@ -6,6 +135,15 @@ export default function Admin() {
           {/* SideNavBar */}
           <aside className="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex flex-col justify-between p-4">
             <div className="flex flex-col gap-8">
+
+            <button
+              onClick={async () => {
+                await signOut(auth);
+                window.location.href = "/login";
+              }}
+            >
+              Force Logout
+            </button>
   
               <div className="flex items-center gap-3 px-2">
                 <div className="bg-primary rounded-lg p-2 text-white">
@@ -43,13 +181,21 @@ export default function Admin() {
                   <p className="text-sm font-semibold">Questions</p>
                 </a>
   
-                <a
-                  href="#"
+                <Link
+                  to="/admin/exams"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[22px]">auto_stories</span>
                   <p className="text-sm font-medium">Exams</p>
-                </a>
+                </Link>
+
+                <Link
+                  to="/admin/subjects"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[22px]">auto_stories</span>
+                  <p className="text-sm font-medium">Subjects</p>
+                </Link>
   
                 <a
                   href="#"
@@ -118,18 +264,23 @@ export default function Admin() {
                       </label>
                       <div className="relative custom-select">
                         <select
-                          defaultValue=""
+                          value={exam?.id || ""}
+                          onChange={(e) => {
+                            const selected = exams.find(ex => ex.id === e.target.value);
+                            setExam(selected);
+                            setSubject("");
+                          }}
                           className="appearance-none w-full px-4 py-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-[#0f0f1a] dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                         >
-                          <option disabled value="">
-                            Select Exam Type...
-                          </option>
-                          <option value="upsc">UPSC Civil Services</option>
-                          <option value="ssc">SSC CGL</option>
-                          <option value="jee">JEE Advanced</option>
-                          <option value="neet">NEET UG</option>
-                          <option value="cat">CAT</option>
+                          <option value="" disabled>Select Exam...</option>
+
+                          {exams.map(ex => (
+                            <option key={ex.id} value={ex.id}>
+                              {ex.type}
+                            </option>
+                          ))}
                         </select>
+
                         <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-400">
                           <span className="material-symbols-outlined text-xl">
                             unfold_more
@@ -141,28 +292,49 @@ export default function Admin() {
                     {/* Subject */}
                     <div>
                       <label className="block mb-2 text-[#0f0f1a] dark:text-gray-200 text-sm font-semibold">
-                        Subject / Category
+                        Subject
                       </label>
                       <div className="relative custom-select">
                         <select
-                          defaultValue=""
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          disabled={!exam}
                           className="appearance-none w-full px-4 py-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-[#0f0f1a] dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                         >
-                          <option disabled value="">
-                            Select Category...
+                          <option value="" disabled>
+                            {exam ? "Select Subject..." : "Select exam first"}
                           </option>
-                          <option value="gs">General Studies</option>
-                          <option value="qa">Quantitative Aptitude</option>
-                          <option value="lr">Logical Reasoning</option>
-                          <option value="eng">English Language</option>
-                          <option value="phy">Physics</option>
+
+                          {filteredSubjects.map(sub => (  
+                            <option key={sub.id} value={sub.name}>
+                              {sub.name}
+                            </option>
+                          ))}
                         </select>
+
                         <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-400">
                           <span className="material-symbols-outlined text-xl">
                             unfold_more
                           </span>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Question Type */}
+                    <div>
+                      <label className="block mb-2 text-sm font-semibold">
+                        Question Type
+                      </label>
+                      <select
+                        value={type}
+                        onChange={(e) => setType(e.target.value)}
+                        className="appearance-none w-full px-4 py-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-[#0f0f1a] dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+                      >
+                        <option value="MCQ">MCQ</option>
+                        <option value="STATEMENT">Statement Based</option>
+                        <option value="ASSERTION_REASON">Assertion–Reason</option>
+                        <option value="PASSAGE">Passage Based</option>
+                      </select>
                     </div>
 
                     {/* Quantity */}
@@ -176,6 +348,8 @@ export default function Admin() {
                           min={1}
                           max={100}
                           defaultValue={25}
+                          value={count}
+                          onChange={(e) => setCount(Number(e.target.value))}
                           className="w-full px-4 py-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-[#0f0f1a] dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                         />
                         <p className="text-xs text-gray-500 whitespace-nowrap">
@@ -190,23 +364,31 @@ export default function Admin() {
                         Difficulty Level
                       </label>
                       <div className="flex gap-2">
-                        <button className="flex-1 py-2 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-primary transition-all">
-                          Easy
-                        </button>
-                        <button className="flex-1 py-2 text-xs font-semibold rounded-lg border-2 border-primary bg-primary/5 text-primary">
-                          Medium
-                        </button>
-                        <button className="flex-1 py-2 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-primary transition-all">
-                          Hard
-                        </button>
+                        {["Easy", "Medium", "Hard"].map(level => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => setDifficulty(level)}
+                            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all
+                              ${
+                                difficulty === level
+                                  ? "border-2 border-primary bg-primary/5 text-primary"
+                                  : "border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-primary"
+                              }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
                     {/* Submit */}
                     <div className="pt-4">
-                      <button className="w-full bg-primary hover:bg-[#15156b] text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined">bolt</span>
-                        Generate Questions
+                      <button onClick={handleGenerate}
+                        disabled={loading}
+                        className="w-full bg-primary hover:bg-[#15156b] text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2">
+                          <span className="material-symbols-outlined">bolt</span>
+                          {loading ? "Generating..." : "Generate Questions"}
                       </button>
                     </div>
                   </div>
@@ -275,29 +457,81 @@ export default function Admin() {
         </main>
       </div>
 
-      {/* Success Snackbar */}
-      <div className="fixed bottom-8 right-8 z-50">
-        <div className="bg-white dark:bg-gray-900 border-l-4 border-green-500 shadow-2xl rounded-lg p-4 flex items-center gap-4 min-w-[320px]">
-          <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
-            <span
-              className="material-symbols-outlined text-xl"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
+      {/* Snackbar */}
+      {result && (
+        <div className="fixed bottom-8 right-8 z-50">
+          <div className="bg-white border-l-4 border-green-500 shadow-xl rounded-lg p-4 flex gap-4">
+            <span className="material-symbols-outlined text-green-600">
               check_circle
             </span>
+            <div>
+              <p className="font-bold text-sm">Generation Complete</p>
+              <p className="text-xs text-gray-500">
+                Approved: {result.approved}, Rejected: {result.rejected}
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-bold">Success!</h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              25 questions have been added to the queue.
-            </p>
+        </div>
+      )}
+
+{job && (
+  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+    <div className="bg-white dark:bg-gray-900 w-[420px] rounded-2xl p-6">
+
+      {/* Status */}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-lg">Generating Questions</h3>
+        <span className={`px-3 py-1 text-xs rounded-full font-bold
+          ${job.status === "RUNNING"
+            ? "bg-blue-100 text-blue-700"
+            : "bg-green-100 text-green-700"}`}>
+          {job.status}
+        </span>
+      </div>
+
+      {/* Circular progress */}
+      <div className="flex justify-center my-6">
+        <div className="relative w-32 h-32 rounded-full border-4 border-primary/30 overflow-hidden">
+          <div
+            className="absolute bottom-0 w-full bg-primary transition-all duration-700"
+            style={{ height: `${progress}%` }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center font-black text-xl">
+            {progress}%
           </div>
-          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-            <span className="material-symbols-outlined text-lg">close</span>
-          </button>
         </div>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 text-center gap-4 text-sm">
+        <div>
+          <p className="font-bold">{job.generated}</p>
+          <p className="text-gray-500">Generated</p>
+        </div>
+        <div>
+          <p className="font-bold text-green-600">{job.approved}</p>
+          <p className="text-gray-500">Approved</p>
+        </div>
+        <div>
+          <p className="font-bold text-red-600">{job.rejected}</p>
+          <p className="text-gray-500">Rejected</p>
+        </div>
+      </div>
+
+      {/* Completion */}
+      {job.status === "COMPLETED" && (
+        <div className="mt-6">
+          <button
+            onClick={() => navigate("/admin/questions")}
+            className="w-full bg-primary text-white py-3 rounded-lg font-bold"
+          >
+            Review Generated Questions
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
     </div>
   );
 }
-  

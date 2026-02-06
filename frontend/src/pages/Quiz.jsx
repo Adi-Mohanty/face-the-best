@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchQuestions } from "../services/questions";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
+import { auth } from "../services/firebase";
 
 const STORAGE_KEY = "exam-progress";
 const TOTAL_TIME = 600;
@@ -10,6 +11,10 @@ export default function Quiz() {
     const navigate = useNavigate();
     const { state } = useLocation();
     // const { selectedExam, selectedSubject } = state || {};
+
+useEffect(() => {
+  console.log("Current user:", auth.currentUser);
+}, []);
   
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -26,13 +31,13 @@ export default function Quiz() {
     useEffect(() => {
       const load = async () => {
         try {
-          const data = await fetchQuestions("UPSC", "Polity");
+          const data = await fetchQuestions("UPSC", "Indian Polity");
           console.log("Fetched questions:", data);
           setQuestions(data);
         } catch (e) {
           console.error("Failed to fetch questions", e);
         } finally {
-          setLoading(false); // ✅ THIS WAS MISSING
+          setLoading(false);
         }
       };
       load();

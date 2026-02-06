@@ -195,7 +195,7 @@ export const generateQuestions = onCall(
     { secrets: [GEMINI_API_KEY] },
     async (request) => {
       console.log("AUTH:", request.auth?.uid);
-      // requireAdmin(request);
+      requireAdmin(request);
   
       const { exam, subject, type, count, difficulty } = request.data;
   
@@ -205,9 +205,6 @@ export const generateQuestions = onCall(
           "Missing parameters"
         );
       }
-  
-      // const geminiKey = GEMINI_API_KEY.value();
-      // const geminiKey = "AIzaSyCKbqdPdi3AncKgRbm9LfZIOYOPrQhz2b0";
 
       const geminiKey = process.env.GEMINI_API_KEY;
 

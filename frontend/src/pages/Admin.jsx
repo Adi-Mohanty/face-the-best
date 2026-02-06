@@ -8,13 +8,14 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
+import GenerationJobModal from "../components/GenerationJobModal";
 
 export default function Admin() {
   const [exam, setExam] = useState(null);
   const [subject, setSubject] = useState("");
-  const [type, setType] = useState("MCQ");
-  const [count, setCount] = useState(25);
-  const [difficulty, setDifficulty] = useState("Medium");
+  const [type, setType] = useState("");
+  const [count, setCount] = useState(10);
+  const [difficulty, setDifficulty] = useState("Easy");
   const [exams, setExams] = useState([]);
   const [subjects, setSubjects] = useState([]);
 
@@ -56,11 +57,18 @@ export default function Admin() {
   
     const unsub = onSnapshot(
       doc(db, "generationJobs", activeJobId),
-      (snap) => setJob(snap.data())
+      (snap) => {
+        const data = snap.data();
+        setJob(data);
+  
+        if (data?.status === "COMPLETED" || data?.status === "FAILED") {
+          setTimeout(() => setActiveJobId(null), 1000);
+        }
+      }
     );
   
     return unsub;
-  }, [activeJobId]);  
+  }, [activeJobId]);    
   
   const handleGenerate = async () => {
     setLoading(true);
@@ -280,12 +288,6 @@ export default function Admin() {
                             </option>
                           ))}
                         </select>
-
-                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-400">
-                          <span className="material-symbols-outlined text-xl">
-                            unfold_more
-                          </span>
-                        </div>
                       </div>
                     </div>
 
@@ -311,12 +313,6 @@ export default function Admin() {
                             </option>
                           ))}
                         </select>
-
-                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-400">
-                          <span className="material-symbols-outlined text-xl">
-                            unfold_more
-                          </span>
-                        </div>
                       </div>
                     </div>
 
@@ -330,6 +326,7 @@ export default function Admin() {
                         onChange={(e) => setType(e.target.value)}
                         className="appearance-none w-full px-4 py-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-[#0f0f1a] dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                       >
+                        <option value="" disabled>Select Question Type...</option>
                         <option value="MCQ">MCQ</option>
                         <option value="STATEMENT">Statement Based</option>
                         <option value="ASSERTION_REASON">Assertion–Reason</option>
@@ -346,14 +343,14 @@ export default function Admin() {
                         <input
                           type="number"
                           min={1}
-                          max={100}
-                          defaultValue={25}
+                          max={30}
+                          defaultValue={10}
                           value={count}
                           onChange={(e) => setCount(Number(e.target.value))}
                           className="w-full px-4 py-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-[#0f0f1a] dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                         />
                         <p className="text-xs text-gray-500 whitespace-nowrap">
-                          Max: 100 per batch
+                          Max: 30 per batch
                         </p>
                       </div>
                     </div>
@@ -385,7 +382,7 @@ export default function Admin() {
                     {/* Submit */}
                     <div className="pt-4">
                       <button onClick={handleGenerate}
-                        disabled={loading}
+                        disabled={loading || job?.status === "RUNNING"}
                         className="w-full bg-primary hover:bg-[#15156b] text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2">
                           <span className="material-symbols-outlined">bolt</span>
                           {loading ? "Generating..." : "Generate Questions"}
@@ -474,64 +471,13 @@ export default function Admin() {
         </div>
       )}
 
-{job && (
-  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-    <div className="bg-white dark:bg-gray-900 w-[420px] rounded-2xl p-6">
-
-      {/* Status */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold text-lg">Generating Questions</h3>
-        <span className={`px-3 py-1 text-xs rounded-full font-bold
-          ${job.status === "RUNNING"
-            ? "bg-blue-100 text-blue-700"
-            : "bg-green-100 text-green-700"}`}>
-          {job.status}
-        </span>
-      </div>
-
-      {/* Circular progress */}
-      <div className="flex justify-center my-6">
-        <div className="relative w-32 h-32 rounded-full border-4 border-primary/30 overflow-hidden">
-          <div
-            className="absolute bottom-0 w-full bg-primary transition-all duration-700"
-            style={{ height: `${progress}%` }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center font-black text-xl">
-            {progress}%
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 text-center gap-4 text-sm">
-        <div>
-          <p className="font-bold">{job.generated}</p>
-          <p className="text-gray-500">Generated</p>
-        </div>
-        <div>
-          <p className="font-bold text-green-600">{job.approved}</p>
-          <p className="text-gray-500">Approved</p>
-        </div>
-        <div>
-          <p className="font-bold text-red-600">{job.rejected}</p>
-          <p className="text-gray-500">Rejected</p>
-        </div>
-      </div>
-
-      {/* Completion */}
-      {job.status === "COMPLETED" && (
-        <div className="mt-6">
-          <button
-            onClick={() => navigate("/admin/questions")}
-            className="w-full bg-primary text-white py-3 rounded-lg font-bold"
-          >
-            Review Generated Questions
-          </button>
-        </div>
+      {job && (
+        <GenerationJobModal
+          job={job}
+          onClose={() => setJob(null)}
+        />
       )}
-    </div>
-  </div>
-)}
+
     </div>
   );
 }

@@ -15,22 +15,33 @@ export default function GenerationJobModal({ job, onClose }) {
   const isCompleted = job.status === "COMPLETED";
   const isFailed = job.status === "FAILED";
 
+  function Meta({ label, value }) {
+    return (
+      <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg">
+        <span className="text-gray-500">{label}</span>
+        <span className="font-semibold text-gray-900 dark:text-gray-100">
+          {value || "—"}
+        </span>
+      </div>
+    );
+  }  
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
       <div className="bg-white dark:bg-gray-900 w-[440px] rounded-2xl p-6 relative">
 
         {/* Close */}
-        <button
+        {/* <button
           disabled={isRunning}
           onClick={onClose}
-          className={`absolute top-4 right-4 text-xl ${
+          className={`absolute top-1 right-2 text-xl ${
             isRunning
               ? "opacity-30 cursor-not-allowed"
               : "hover:text-red-500"
           }`}
         >
           ✕
-        </button>
+        </button> */}
 
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
@@ -48,6 +59,25 @@ export default function GenerationJobModal({ job, onClose }) {
             {job.status}
           </span>
         </div>
+
+        {/* Job meta */}
+        <div className="mt-3 mb-4 grid grid-cols-2 gap-2 text-xs">
+          <Meta label="Exam" value={job.exam} />
+          <Meta label="Subject" value={job.subject} />
+          <Meta label="Type" value={job.type} />
+          <Meta label="Difficulty" value={job.difficulty} />
+          <Meta label="Requested" value={`${job.totalQuestions} Qs`} />
+          <Meta
+            label="Started"
+            value={job.createdAt?.toDate().toLocaleTimeString()}
+          />
+        </div>
+
+        {job.difficultyDowngraded && (
+          <div className="mb-4 text-xs bg-yellow-50 text-yellow-700 px-3 py-2 rounded-lg">
+            ⚠ Difficulty auto-adjusted to ensure completion
+          </div>
+        )}
 
         {/* Circular Progress */}
         <div className="flex justify-center my-6">
@@ -82,6 +112,12 @@ export default function GenerationJobModal({ job, onClose }) {
             <p className="text-gray-500">Rejected</p>
           </div>
         </div>
+
+        {job.status === "PARTIAL" && (
+          <div className="mt-4 bg-orange-50 text-orange-700 p-3 rounded-lg text-xs">
+            ⚠ Job completed partially due to model constraints
+          </div>
+        )}
 
         {/* Failure reason */}
         {isFailed && job.errorReason && (

@@ -13,6 +13,8 @@ import DevNavBar from "./components/DevNavBar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminExams from "./pages/AdminExams";
 import AdminSubjects from "./pages/AdminSubjects";
+import AdminRoute from "./components/AdminRoute";
+import Unauthorized from "./pages/Unauthorized";
 
 export default function App() {
   return (
@@ -47,20 +49,24 @@ export default function App() {
           </ProtectedRoute>} />
 
         <Route path="/admin" element={
-          <ProtectedRoute>
+          <AdminRoute>
             <Admin />
-          </ProtectedRoute>} />
+          </AdminRoute>} />
 
         <Route path="/admin/exams" element={
-          <ProtectedRoute>
+          <AdminRoute>
             <AdminExams />
-          </ProtectedRoute>} />
+          </AdminRoute>} />
 
         <Route path="/admin/subjects" element={
-          <ProtectedRoute>
+          <AdminRoute>
             <AdminSubjects />
-          </ProtectedRoute>} />
+          </AdminRoute>} />
+
+
+          <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
+
 
       {/* 🔧 Temporary Dev Navigation */}
       <DevNavBar />

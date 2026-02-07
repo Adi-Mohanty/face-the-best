@@ -26,6 +26,15 @@ export default function Admin() {
   const [activeJobId, setActiveJobId] = useState(null);
   const [job, setJob] = useState(null);
 
+  const [stats, setStats] = useState({
+    totalQuestions: 0,
+    credits: 0
+  });  
+  const [recentJobs, setRecentJobs] = useState([]);
+
+  const [avgApprovalRate, setAvgApprovalRate] = useState(0);
+  const [topSubjects, setTopSubjects] = useState([]);
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(user => {
       console.log("Auth state:", user);
@@ -36,9 +45,6 @@ export default function Admin() {
 
   const createJob = httpsCallable(functions, "createGenerationJob");
   const filteredSubjects = exam? subjects.filter(sub => exam.subjects?.includes(sub.id)): [];
-  const progress = job
-  ? Math.round((job.batchesCompleted / job.batchesTotal) * 100)
-  : 0;
 
   useEffect(() => {
     const loadMeta = async () => {
@@ -60,6 +66,14 @@ export default function Admin() {
       (snap) => {
         const data = snap.data();
         setJob(data);
+
+        if (data?.status === "COMPLETED") {
+          setExam(null);
+          setSubject("");
+          setType("");
+          setCount(10);
+          setDifficulty("Easy");
+        }
   
         if (data?.status === "COMPLETED" || data?.status === "FAILED") {
           setTimeout(() => setActiveJobId(null), 1000);
@@ -68,7 +82,71 @@ export default function Admin() {
     );
   
     return unsub;
-  }, [activeJobId]);    
+  }, [activeJobId]);   
+  
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "generationJobs"),
+      (snap) => {
+        const jobs = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+  
+        // 🔹 Recent 5 jobs (UI list)
+        setRecentJobs(jobs.slice(0, 5));
+  
+        // 🔹 Last 10 completed/partial jobs for analytics
+        const last10 = jobs
+          .filter(j => j.status === "COMPLETED" || j.status === "PARTIAL")
+          .slice(0, 10);
+  
+        // ===== Average Approval Rate =====
+        if (last10.length > 0) {
+          const totalApproved = last10.reduce((s, j) => s + (j.approved || 0), 0);
+          const totalGenerated = last10.reduce((s, j) => s + (j.generated || 0), 0);
+  
+          const rate = totalGenerated
+            ? Math.round((totalApproved / totalGenerated) * 100)
+            : 0;
+  
+          setAvgApprovalRate(rate);
+        } else {
+          setAvgApprovalRate(0);
+        }
+  
+        // ===== Top 3 Most Generated Subjects =====
+        const subjectMap = {};
+  
+        jobs.forEach(j => {
+          if (!j.subject || !j.generated) return;
+          subjectMap[j.subject] = (subjectMap[j.subject] || 0) + j.generated;
+        });
+  
+        const top = Object.entries(subjectMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([subject, count]) => ({ subject, count }));
+  
+        setTopSubjects(top);
+      }
+    );
+  
+    return unsub;
+  }, []);    
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "questions"),
+      (snap) => {
+        setStats(prev => ({
+          ...prev,
+          totalQuestions: snap.size
+        }));
+      }
+    );
+  
+    return unsub;
+  }, []);  
   
   const handleGenerate = async () => {
     setLoading(true);
@@ -91,50 +169,24 @@ export default function Admin() {
     }
   };
 
-  // const handleGenerate = async () => {
-  //   if (!exam || !subject || !type || !count) {
-  //     setError("Please fill all required fields");
-  //     return;
-  //   }
 
-  //   console.log("Current user:", auth.currentUser);
-  //   console.log("ID token:", await auth.currentUser?.getIdToken());
-
-  //   if (!authReady) {
-  //     setError("Auth not ready yet. Please wait 1 second and try again.");
-  //     return;
-  //   }
-
-  //   if (!auth.currentUser) {
-  //     setError("Not logged in");
-  //     return;
-  //   }
+  function StatTile({ label, value, accent }) {
+    const colors = {
+      primary: "bg-primary/10 text-primary",
+      green: "bg-green-100 text-green-700",
+      blue: "bg-blue-100 text-blue-700"
+    };
   
-  //   setLoading(true);
-  //   setError("");
-  //   setResult(null);
+    return (
+      <div className={`rounded-xl p-4 bg-gray-50 dark:bg-gray-800 ${colors[accent] || ""}`}>
+        <p className="text-xs text-gray-500 mb-1">{label}</p>
+        <p className={`text-2xl font-black `}>
+          {value}
+        </p>
+      </div>
+    );
+  }
   
-  //   try {
-  //     await auth.currentUser.getIdToken(true);
-
-  //     const res = await generateQuestions({
-  //       exam: exam.type,
-  //       subject,
-  //       type,
-  //       count,
-  //       difficulty
-  //     });
-
-  //     console.log("Generated Questions: ", res.data);
-  
-  //     setResult(res.data);
-  //   } catch (err) {
-  //     console.error(err);
-  //     setError(err.message || "Generation failed");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
    
     return (
       <div className="bg-background-light dark:bg-background-dark font-display">
@@ -193,7 +245,7 @@ export default function Admin() {
                   to="/admin/exams"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[22px]">auto_stories</span>
+                  <span className="material-symbols-outlined text-[22px]">school</span>
                   <p className="text-sm font-medium">Exams</p>
                 </Link>
 
@@ -201,7 +253,7 @@ export default function Admin() {
                   to="/admin/subjects"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[22px]">auto_stories</span>
+                  <span className="material-symbols-outlined text-[22px]">menu_book</span>
                   <p className="text-sm font-medium">Subjects</p>
                 </Link>
   
@@ -395,53 +447,121 @@ export default function Admin() {
               {/* Side Card */}
               <div className="lg:col-span-5">
                 <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  <div className="h-40 bg-primary/10 relative flex items-center justify-center overflow-hidden">
-                    <span className="material-symbols-outlined text-6xl text-primary opacity-20">
-                      psychology
-                    </span>
-                  </div>
-
                   <div className="p-6">
                     <h3 className="text-[#0f0f1a] dark:text-white text-lg font-bold mb-2">
                       Generation Statistics
-                    </h3>
+                    </h3>                    
 
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-800">
+                    <div className="space-y-2">
+                      {/* <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-800">
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           Total Questions Generated
                         </span>
-                        <span className="text-sm font-bold">12,402</span>
+                        <span className="text-sm font-bold">{stats.totalQuestions}</span>
                       </div>
 
                       <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-800">
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Available Credits
+                          Avg Approval Rate (last 10 jobs)
                         </span>
-                        <span className="text-sm font-bold text-primary">
-                          4,850
+                        <span className="text-sm font-bold text-green-600">
+                          {avgApprovalRate}%
                         </span>
+                      </div> */}
+
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <StatTile
+                          label="Total Questions"
+                          value={stats.totalQuestions}
+                          accent="primary"
+                        />
+
+                        <StatTile
+                          label="Avg Approval (last 10)"
+                          value={`${avgApprovalRate}%`}
+                          accent="green"
+                        />
                       </div>
 
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Last Batch Status
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                          Complete
-                        </span>
+                      <div className="mt-6">
+                        <h4 className="text-sm font-bold mb-3">
+                          Top Generated Subjects
+                        </h4>
+
+                        <div className="space-y-3">
+                          {topSubjects.map((s, i) => {
+                            const max = topSubjects[0]?.count || 1;
+                            const percent = Math.round((s.count / max) * 100);
+
+                            return (
+                              <div key={s.subject}>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-semibold">
+                                    #{i + 1} {s.subject}
+                                  </span>
+                                  <span className="font-bold text-primary">
+                                    {s.count}
+                                  </span>
+                                </div>
+
+                                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary transition-all"
+                                    style={{ width: `${percent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-6">
+                        <h4 className="text-sm font-bold mb-3">Recent Jobs</h4>
+
+                        <div className="space-y-2">
+                          {recentJobs.map(j => (
+                            <button
+                            key={j.id}
+                            onClick={() => setJob(j)}
+                            className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-left"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-xs font-bold">
+                                  {j.exam} • {j.subject}
+                                </p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                  {j.approved}/{j.generated} approved • {j.type}
+                                </p>
+                              </div>
+                          
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold
+                                ${j.status === "RUNNING"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : j.status === "COMPLETED"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {j.status}
+                              </span>
+                            </div>
+                          </button>
+                          
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl">
                       <div className="flex gap-3">
                         <span className="material-symbols-outlined text-primary text-xl">
-                          info
+                          auto_awesome
                         </span>
-                        <p className="text-xs text-[#555591] dark:text-gray-300 leading-relaxed">
-                          Automated generation uses our high-performance AI model.
-                          Each batch takes approximately 30–60 seconds to process.
+                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                          AI generation runs in controlled batches with verification.
+                          Hard questions may auto-adjust to ensure completion quality.
                         </p>
                       </div>
                     </div>

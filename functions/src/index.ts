@@ -10,6 +10,7 @@ admin.initializeApp();
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const BATCH_SIZE = 3;
 const MAX_CONCURRENCY = 2;
+const MAX_RETRIES = 3;
 
 async function callGemini(prompt: string, apiKey: string) {
   const response = await fetch(
@@ -59,6 +60,7 @@ async function callGemini(prompt: string, apiKey: string) {
     finishReason: json?.candidates?.[0]?.finishReason
   };
 }
+
 
 function buildGenerationPrompt(
     exam: string,
@@ -154,6 +156,7 @@ function buildGenerationPrompt(
     throw new Error("Unsupported question type");
 }
   
+
 function verificationPrompt(q: any) {
     let questionText = "";
   
@@ -190,6 +193,7 @@ function verificationPrompt(q: any) {
   Return ONLY the correct option index (0-3).
   `;
 }  
+
 
 export const generateQuestions = onCall(
     { secrets: [GEMINI_API_KEY] },
@@ -311,9 +315,7 @@ export const generateQuestions = onCall(
 export const createGenerationJob = onCall(
   { secrets: [GEMINI_API_KEY] },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Login required");
-    }
+    requireAdmin(request);
 
     const { exam, subject, type, count, difficulty } = request.data;
 
@@ -356,11 +358,7 @@ export const processGenerationJob = onDocumentCreated(
     region: "us-central1"
   },
   async (event) => {
-
-    if (!event.data) {
-      console.warn("processGenerationJob triggered without data");
-      return;
-    }
+    if (!event.data) return;
 
     const jobRef = event.data.ref;
     const job = event.data.data();
@@ -372,118 +370,144 @@ export const processGenerationJob = onDocumentCreated(
       subject,
       type,
       difficulty,
-      batchesTotal
+      batchesTotal,
+      totalQuestions
     } = job;
 
     const geminiKey = process.env.GEMINI_API_KEY!;
     const db = admin.firestore();
 
-    let approved = 0;
-    let rejected = 0;
-    let generated = 0;
-
-    const queue = Array.from({ length: batchesTotal });
-
+    let remaining = totalQuestions;
     let effectiveBatchSize = BATCH_SIZE;
-    const MAX_RETRIES = 3;
-    let retries = 0;
 
-    async function runBatch() {
-      if (queue.length === 0) return;
+    // Shared batch counter (acts like a queue index)
+    let batchIndex = 0;
 
-      let batchSucceeded = false
+    async function runWorker() {
+      while (true) {
+        // Atomically claim a batch index
+        const currentBatch = batchIndex++;
+        if (currentBatch >= batchesTotal) return;
+        if (remaining <= 0) return;
 
-      queue.pop();
+        const batchSize = Math.min(effectiveBatchSize, remaining);
+        if (batchSize <= 0) return;
 
-      try {
-        const { text, finishReason } = await callGemini(
-          buildGenerationPrompt(
-            exam,
-            subject,
-            type,
-            effectiveBatchSize,
-            difficulty
-          ),
-          geminiKey
-        );
+        let retries = 0;
 
-        if (finishReason === "MAX_TOKENS") {
-          retries++;
-        
-          if (retries >= MAX_RETRIES) {
-            await jobRef.update({
-              status: "FAILED",
-              errorReason: "Gemini output repeatedly truncated",
-              failedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-        
-            // Stop all further processing
-            queue.length = 0;
-            return;
-          }
-        
-          effectiveBatchSize = Math.max(1, effectiveBatchSize - 1);
-          queue.push(null);
-          return;
-        }        
+        let generatedDelta = 0;
+        let approvedDelta = 0;
+        let rejectedDelta = 0;
 
-        const questions = JSON.parse(text);
-        generated += questions.length;
+        try {
+          const { text, finishReason } = await callGemini(
+            buildGenerationPrompt(
+              exam,
+              subject,
+              type,
+              batchSize,
+              difficulty
+            ),
+            geminiKey
+          );
 
-        for (const q of questions) {
-          try {
-            const { text: verifyText } = await callGemini(
-              verificationPrompt(q),
-              geminiKey
-            );
-            
-            const match = verifyText.match(/\b[0-3]\b/);
-            
-            if (!match || Number(match[0]) !== q.correctOption) {
-              rejected++;
+          // Handle token truncation
+          if (finishReason === "MAX_TOKENS") {
+            retries++;
+
+            if (retries === 2 && difficulty === "Hard" && !job.difficultyDowngraded) {
+              await jobRef.update({ difficultyDowngraded: true });
+            }
+
+            if (retries >= MAX_RETRIES) {
+              // Skip batch but count it
+              rejectedDelta += batchSize;
+              remaining -= batchSize;
+
+              await jobRef.update({
+                rejected: admin.firestore.FieldValue.increment(rejectedDelta),
+                batchesCompleted: admin.firestore.FieldValue.increment(1)
+              });
+
               continue;
             }
 
-            approved++;
+            effectiveBatchSize = Math.max(1, effectiveBatchSize - 1);
+            continue;
+          }
 
-            await db.collection("questions").add({
-              jobId: event.params.jobId,
-              exam,
-              subject,
-              ...q,
-              isActive: true,
-              createdAt: admin.firestore.FieldValue.serverTimestamp()
+          // Parse Gemini output safely
+          let questions: any[];
+          try {
+            questions = JSON.parse(text);
+          } catch {
+            rejectedDelta += batchSize;
+            remaining -= batchSize;
+
+            await jobRef.update({
+              rejected: admin.firestore.FieldValue.increment(rejectedDelta),
+              batchesCompleted: admin.firestore.FieldValue.increment(1)
             });
 
-          } catch {
-            rejected++;
+            continue;
           }
-        }
 
-        batchSucceeded = true;
-      } finally {
-        if (batchSucceeded) {
+          const usableQuestions = questions.slice(0, batchSize);
+          generatedDelta = usableQuestions.length;
+          remaining -= generatedDelta;
+
+          for (const q of usableQuestions) {
+            try {
+              const { text: verifyText } = await callGemini(
+                verificationPrompt(q),
+                geminiKey
+              );
+
+              const match = verifyText.match(/\b[0-3]\b/);
+              if (!match || Number(match[0]) !== q.correctOption) {
+                rejectedDelta++;
+                continue;
+              }
+
+              approvedDelta++;
+
+              await db.collection("questions").add({
+                jobId: event.params.jobId,
+                exam,
+                subject,
+                ...q,
+                isActive: true,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+            } catch {
+              rejectedDelta++;
+            }
+          }
+
+          // Commit batch results
           await jobRef.update({
-            generated,
-            approved,
-            rejected,
+            generated: admin.firestore.FieldValue.increment(generatedDelta),
+            approved: admin.firestore.FieldValue.increment(approvedDelta),
+            rejected: admin.firestore.FieldValue.increment(rejectedDelta),
             batchesCompleted: admin.firestore.FieldValue.increment(1)
           });
+
+        } catch (err) {
+          console.error("Batch failed:", err);
         }
-      
-        await runBatch();
       }
     }
 
+    // Run workers in parallel
     await Promise.all(
-      Array.from({ length: MAX_CONCURRENCY }).map(runBatch)
+      Array.from({ length: MAX_CONCURRENCY }).map(() => runWorker())
     );
 
+    // Finalize job
     const latest = await jobRef.get();
-
     if (latest.data()?.status === "RUNNING") {
       await jobRef.update({
-        status: "COMPLETED",
+        status: remaining <= 0 ? "COMPLETED" : "PARTIAL",
         completedAt: admin.firestore.FieldValue.serverTimestamp()
       });
     }

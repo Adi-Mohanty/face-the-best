@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { fetchQuestions } from "../services/questions";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
 import { auth } from "../services/firebase";
+import InstructionsModal from "../components/Instructions";
 
 const STORAGE_KEY = "exam-progress";
 const TOTAL_TIME = 600;
@@ -10,13 +11,17 @@ const TOTAL_TIME = 600;
 export default function Quiz() {
     const navigate = useNavigate();
     const { state } = useLocation();
-    // const { selectedExam, selectedSubject } = state || {};
+    const { exam, subject } = state || {};
+    
+    useEffect(() => {
+      if (!exam || !subject) {
+        navigate("/exams");
+      }
+    }, [exam, subject, navigate]);
+      
+    const [phase, setPhase] = useState("loading");
+    // loading | noQuestions | instructions | exam
 
-useEffect(() => {
-  console.log("Current user:", auth.currentUser);
-}, []);
-  
-    const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState({});
     const [skipped, setSkipped] = useState(new Set());
@@ -24,24 +29,42 @@ useEffect(() => {
     const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [questions, setQuestions] = useState([]);
+    const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+    const [responses, setResponses] = useState({});
 
     const question = questions[currentIndex];
     const totalQuestions = questions.length;
 
     useEffect(() => {
+      console.log("Current user:", auth.currentUser);
+    }, []);
+
+    useEffect(() => {
+      setQuestionStartTime(Date.now());
+    }, [currentIndex]);    
+
+    useEffect(() => {
       const load = async () => {
         try {
-          const data = await fetchQuestions("UPSC", "Indian Polity");
-          console.log("Fetched questions:", data);
+          const data = await fetchQuestions(exam.type, subject.name, 10);
+    
+          if (data.length < 10) {
+            setPhase("noQuestions");
+            return;
+          }
+    
           setQuestions(data);
+          setPhase("instructions");
         } catch (e) {
-          console.error("Failed to fetch questions", e);
+          console.error(e);
+          setPhase("noQuestions");
         } finally {
-          setLoading(false);
+          // setLoading(false);
         }
       };
+    
       load();
-    }, []); 
+    }, [exam, subject]);    
   
     /* ---------------- TIMER ---------------- */
     useEffect(() => {
@@ -106,17 +129,24 @@ useEffect(() => {
   
     /* ---------------- ANSWERS ---------------- */
     const handleSelect = (optionIndex) => {
+      recordResponse({
+        questionId: question.id,
+        selectedOption: optionIndex,
+        skipped: false,
+        markedForReview: markedForReview.has(question.id)
+      });
+    
       setAnswers(prev => ({
         ...prev,
         [question.id]: optionIndex
       }));
-  
+    
       setSkipped(prev => {
         const copy = new Set(prev);
         copy.delete(question.id);
         return copy;
       });
-    };
+    };    
   
     /* ---------------- NAVIGATION ---------------- */
     const handleNext = () => {
@@ -132,9 +162,16 @@ useEffect(() => {
     };
   
     const handleSkip = () => {
+      recordResponse({
+        questionId: question.id,
+        selectedOption: null,
+        skipped: true,
+        markedForReview: false
+      });
+    
       setSkipped(prev => new Set(prev).add(question.id));
       handleNext();
-    };
+    };    
 
     const handleMarkForReview = () => {
         setMarkedForReview(prev => {
@@ -146,6 +183,15 @@ useEffect(() => {
           }
           return copy;
         });
+
+        if (answers[question.id] === undefined) {
+          recordResponse({
+            questionId: question.id,
+            selectedOption: null,
+            skipped: true,
+            markedForReview: true
+          });
+        }        
       
         // Move to next question automatically (standard exam behavior)
         handleNext();
@@ -166,35 +212,93 @@ useEffect(() => {
     };      
   
     /* ---------------- SCORE ---------------- */
-    const calculateScore = () => {
-      let score = 0;
-      questions.forEach(q => {
-        if (answers[q.id] === q.correctOption) score++;
-      });
-      return score;
+    const recordResponse = ({
+      questionId,
+      selectedOption,
+      skipped,
+      markedForReview
+    }) => {
+      const timeTakenMs = Date.now() - questionStartTime;
+      const q = questions.find(q => q.id === questionId);
+    
+      setResponses(prev => ({
+        ...prev,
+        [questionId]: {
+          questionId,
+          selectedOption,
+          skipped,
+          markedForReview,
+          isCorrect:
+            selectedOption !== null &&
+            selectedOption === q.correctOption,
+          timeTakenMs
+        }
+      }));
     };
+
+    const buildResultSummary = () => {
+      const responseList = Object.values(responses);
+    
+      const totalQuestions = questions.length;
+      const attempted = responseList.filter(r => !r.skipped);
+      const correct = responseList.filter(r => r.isCorrect);
+    
+      const totalTimeMs =
+        TOTAL_TIME * 1000 - timeLeft * 1000;
+    
+      const avgTimeMs =
+        attempted.length > 0
+          ? Math.round(
+              attempted.reduce((a, r) => a + r.timeTakenMs, 0) /
+                attempted.length
+            )
+          : 0;
+    
+      return {
+        totalQuestions,
+        attemptedCount: attempted.length,
+        skippedCount: totalQuestions - attempted.length,
+        correctCount: correct.length,
+        accuracy:
+          attempted.length > 0
+            ? correct.length / attempted.length
+            : 0,
+        totalTimeMs,
+        avgTimeMs,
+        score: correct.length * 1
+      };
+    };    
   
     const handleSubmit = () => {
       if (isSubmitted) return;
     
       setIsSubmitted(true);
-    
-      const timeTaken = TOTAL_TIME - timeLeft;
-    
       localStorage.removeItem(STORAGE_KEY);
     
+      const result = buildResultSummary();
+    
+      const attemptPayload = {
+        userId: auth.currentUser.uid,
+        mode: "quiz",
+        exam,
+        subject,
+        startedAt: Date.now() - result.totalTimeMs,
+        endedAt: Date.now(),
+    
+        responses: Object.values(responses),
+    
+        result
+      };
+    
+      // 🔒 For now: pass forward
+      // 🔜 Next step: send to Cloud Function
       navigate("/result", {
         state: {
-          answers,
-          skipped: Array.from(skipped),
-          markedForReview: Array.from(markedForReview),
-          score: calculateScore(),
-          timeTaken,              
-          totalTime: TOTAL_TIME,  
+          attempt: attemptPayload,
           questions
         }
       });
-    };              
+    };                
   
     /* ---------------- PROGRESS ---------------- */
     const answeredCount = Object.keys(answers).length;
@@ -202,253 +306,275 @@ useEffect(() => {
       (answeredCount / totalQuestions) * 100
     );
 
-    if (loading) {
+
+    if (phase === "loading") {
       return (
         <div className="min-h-screen flex items-center justify-center">
-          <p className="text-lg font-bold text-slate-500">
-            Loading questions…
-          </p>
-        </div>
-      );
-    }
-    
-    if (!questions.length) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <p className="text-lg font-bold text-red-500">
-            No questions available
+          <p className="text-lg font-semibold text-slate-500">
+            Preparing your quiz…
           </p>
         </div>
       );
     }    
+    
+    if (phase === "noQuestions") {
+      return (
+        <div className="min-h-screen flex flex-col justify-center items-center">
+          <h2 className="text-2xl font-bold text-red-500">
+            No quiz available
+          </h2>
+          <p className="text-gray-500 mt-2">
+            Questions for this subject are not added yet.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-6 px-6 py-3 rounded-lg bg-primary text-white"
+          >
+            Go Back
+          </button>
+        </div>
+      );
+    }
+
+    
      
     return (
-      <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+      <>
+        {/* Instructions Modal */}
+        {phase === "instructions" && (
+          <InstructionsModal
+            onConfirm={() => setPhase("exam")}
+          />
+        )}
 
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
-                    fill="currentColor"
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-lg font-bold leading-tight tracking-tight">
-                Face The Best - Mock Test
-              </h2>
-            </div>
+        {/* Quiz UI */}
+        {phase === "exam" && (<div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
 
-            <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary dark:text-blue-400 rounded text-xs font-bold uppercase tracking-wider">
-              Reasoning &amp; Logic
-            </div>
-  
-            <div className="flex items-center gap-6">
-              {/* Countdown Timer */}
-              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-100 dark:border-red-800">
-                <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">
-                  timer
-                </span>
-                <span className="text-red-600 dark:text-red-400 font-bold text-lg tabular-nums">
-                {formatTime(timeLeft)}
-                </span>
+          {/* Top Navigation Bar */}
+          <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    viewBox="0 0 48 48"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
+                      fill="currentColor"
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-bold leading-tight tracking-tight">
+                  Face The Best - Mock Test
+                </h2>
               </div>
-  
-              {/* Progress Counter */}
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                  Progress
-                </span>
-                <span className="text-slate-900 dark:text-slate-100 font-bold">
-                {currentIndex + 1} / {totalQuestions}
-                </span>
-              </div>
-            </div>
-          </div>
-        </header>
-  
-        <main className="flex-1 flex max-w-[1440px] mx-auto w-full overflow-hidden">
-  
-          {/* Left Section */}
-          <div className="flex-1 flex flex-col p-8 overflow-y-auto">
-  
-            {/* Progress Bar */}
-            <div className="mb-8 max-w-3xl">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Total Completion
-                </span>
-                <span className="text-sm font-bold text-primary dark:text-blue-400">
-                {progressPercent}%
-                </span>
-              </div>
-              <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-  
-            {/* Question Area */}
-            <div className="max-w-3xl">
-              <h1 className="text-2xl font-bold mb-6">Question {currentIndex + 1}</h1>
-  
-              {question && (
-                <QuestionRenderer
-                  question={question}
-                  userAnswer={answers[question.id]}
-                  onSelect={handleSelect}
-                  mode="exam"
-                />
-              )}
-            </div>
-          </div>
-  
-          {/* Right Sidebar */}
-          <aside className="w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
-            <div className="p-6 overflow-y-auto flex-1">
-              <h3 className="text-sm font-bold uppercase tracking-widest mb-6">
-                Question Palette
-              </h3>
-  
-              <div className="grid grid-cols-5 gap-3">
-              {questions.map((q, i) => {
-              const status = getStatus(q, i);
-              const base =
-                "aspect-square rounded-lg font-bold text-sm";
 
-                const map = {
-                    answered: "bg-emerald-500 text-white",
-                    marked: "bg-purple-500 text-white",
-                    skipped: "bg-amber-400 text-white",
-                    current: "bg-primary text-white",
-                    notVisited: "bg-slate-100 text-slate-400"
-                };
-                  
-
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => jumpToQuestion(i)}
-                  className={`${base} ${map[status]}`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
+              <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary dark:text-blue-400 rounded text-xs font-bold uppercase tracking-wider">
+                Reasoning &amp; Logic
               </div>
-  
-              {/* Legend */}
-              <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Status Legend
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="size-4 bg-emerald-500 rounded-sm" />
-                  <span className="text-sm">Answered</span>
+    
+              <div className="flex items-center gap-6">
+                {/* Countdown Timer */}
+                <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-100 dark:border-red-800">
+                  <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">
+                    timer
+                  </span>
+                  <span className="text-red-600 dark:text-red-400 font-bold text-lg tabular-nums">
+                  {formatTime(timeLeft)}
+                  </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="size-4 bg-primary rounded-sm" />
-                  <span className="text-sm">Current Question</span>
+    
+                {/* Progress Counter */}
+                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                    Progress
+                  </span>
+                  <span className="text-slate-900 dark:text-slate-100 font-bold">
+                  {currentIndex + 1} / {totalQuestions}
+                  </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="size-4 bg-amber-400 rounded-sm" />
-                  <span className="text-sm">Skipped</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="size-4 bg-slate-200 dark:bg-slate-700 rounded-sm" />
-                  <span className="text-sm">Not Visited</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="size-4 bg-purple-500 rounded-sm" />
-                  <span className="text-sm">Marked for Review</span>
-                </div>
-
               </div>
             </div>
-  
-            {/* Profile */}
-            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-slate-200 overflow-hidden">
-                  <img
-                    className="w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDl0FnxN7s0PqzqTV4UITWkVhwiiwSRnAA2HYzODRlqKdvEIyx72_9lXGqmpSLCEg2B94fKmPtNLWTf0BfeDwOMoERK-IMtIAFnNCyyNvtjMMP_sU_sPwA3q3GZBqdDwtKRTNMCw2f32H3JftqAjm3LYU801m5qOV3yDq9tuxAcWkhSKTFgxYww-qrlth71hHvIOX8MIOW-CO8rPPGaFdi7E_e2Cs-YBy1c6n-KkXO6hUbFoWDBOd7jfJhOAEd_qmeu1SVbsInSlwmI"
-                    alt="Candidate profile"
+          </header>
+    
+          <main className="flex-1 flex max-w-[1440px] mx-auto w-full overflow-hidden">
+    
+            {/* Left Section */}
+            <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+    
+              {/* Progress Bar */}
+              <div className="mb-8 max-w-3xl">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Total Completion
+                  </span>
+                  <span className="text-sm font-bold text-primary dark:text-blue-400">
+                  {progressPercent}%
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full"
+                    style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                <div>
-                  <p className="text-sm font-bold truncate">Arjun Sharma</p>
-                  <p className="text-xs text-slate-500">ID: EXAM-4429</p>
-                </div>
+              </div>
+    
+              {/* Question Area */}
+              <div className="max-w-3xl">
+                <h1 className="text-2xl font-bold mb-6">Question {currentIndex + 1}</h1>
+    
+                {question && (
+                  <QuestionRenderer
+                    question={question}
+                    userAnswer={answers[question.id]}
+                    onSelect={handleSelect}
+                    mode="exam"
+                  />
+                )}
               </div>
             </div>
-          </aside>
-        </main>
-  
-        {/* Footer */}
-        <footer className="h-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl">
-          <div className="max-w-[1440px] mx-auto h-full px-8 flex items-center justify-between">
-            <div className="flex gap-4">
-              <button className={`px-6 h-11 rounded-lg border font-bold flex items-center ${
-                markedForReview.has(question.id)
-                    ? "border-purple-500 text-purple-600"
-                    : ""
-                }
-                ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={!question || isSubmitted}
-                onClick={handleMarkForReview}>
-                <span className="material-symbols-outlined mr-2">bookmark</span>
-                Mark for Review
-              </button>
-              
-              <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handleSkip}>
-                Skip Question
-              </button>
-            </div>
-  
-            <div className="flex gap-4">
-              <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handlePrevious}>
-                Previous
-              </button>
+    
+            {/* Right Sidebar */}
+            <aside className="w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
+              <div className="p-6 overflow-y-auto flex-1">
+                <h3 className="text-sm font-bold uppercase tracking-widest mb-6">
+                  Question Palette
+                </h3>
+    
+                <div className="grid grid-cols-5 gap-3">
+                {questions.map((q, i) => {
+                const status = getStatus(q, i);
+                const base =
+                  "aspect-square rounded-lg font-bold text-sm";
 
-              {currentIndex === totalQuestions - 1 ? (
-                <button
-                  className="px-8 h-11 rounded-lg bg-primary text-white font-bold flex items-center"
-                  onClick={handleSubmit}
-                >
-                  Submit Exam
-                  <span className="material-symbols-outlined ml-2">
-                    check_circle
-                  </span>
+                  const map = {
+                      answered: "bg-emerald-500 text-white",
+                      marked: "bg-purple-500 text-white",
+                      skipped: "bg-amber-400 text-white",
+                      current: "bg-primary text-white",
+                      notVisited: "bg-slate-100 text-slate-400"
+                  };
+                    
+
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => jumpToQuestion(i)}
+                    className={`${base} ${map[status]}`}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+                </div>
+    
+                {/* Legend */}
+                <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Status Legend
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="size-4 bg-emerald-500 rounded-sm" />
+                    <span className="text-sm">Answered</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="size-4 bg-primary rounded-sm" />
+                    <span className="text-sm">Current Question</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="size-4 bg-amber-400 rounded-sm" />
+                    <span className="text-sm">Skipped</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="size-4 bg-slate-200 dark:bg-slate-700 rounded-sm" />
+                    <span className="text-sm">Not Visited</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="size-4 bg-purple-500 rounded-sm" />
+                    <span className="text-sm">Marked for Review</span>
+                  </div>
+
+                </div>
+              </div>
+    
+              {/* Profile */}
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-full bg-slate-200 overflow-hidden">
+                    <img
+                      className="w-full h-full object-cover"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDl0FnxN7s0PqzqTV4UITWkVhwiiwSRnAA2HYzODRlqKdvEIyx72_9lXGqmpSLCEg2B94fKmPtNLWTf0BfeDwOMoERK-IMtIAFnNCyyNvtjMMP_sU_sPwA3q3GZBqdDwtKRTNMCw2f32H3JftqAjm3LYU801m5qOV3yDq9tuxAcWkhSKTFgxYww-qrlth71hHvIOX8MIOW-CO8rPPGaFdi7E_e2Cs-YBy1c6n-KkXO6hUbFoWDBOd7jfJhOAEd_qmeu1SVbsInSlwmI"
+                      alt="Candidate profile"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold truncate">Arjun Sharma</p>
+                    <p className="text-xs text-slate-500">ID: EXAM-4429</p>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </main>
+    
+          {/* Footer */}
+          <footer className="h-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="max-w-[1440px] mx-auto h-full px-8 flex items-center justify-between">
+              <div className="flex gap-4">
+                <button className={`px-6 h-11 rounded-lg border font-bold flex items-center ${
+                  markedForReview.has(question.id)
+                      ? "border-purple-500 text-purple-600"
+                      : ""
+                  }
+                  ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={!question || isSubmitted}
+                  onClick={handleMarkForReview}>
+                  <span className="material-symbols-outlined mr-2">bookmark</span>
+                  Mark for Review
                 </button>
-              ) : (
-                <button
-                  className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
-                  disabled={isSubmitted}
-                  onClick={handleNext}
-                >
-                  Next
-                  <span className="material-symbols-outlined ml-2">
-                    arrow_forward
-                  </span>
+                
+                <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handleSkip}>
+                  Skip Question
                 </button>
-              )}
+              </div>
+    
+              <div className="flex gap-4">
+                <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handlePrevious}>
+                  Previous
+                </button>
+
+                {currentIndex === totalQuestions - 1 ? (
+                  <button
+                    className="px-8 h-11 rounded-lg bg-primary text-white font-bold flex items-center"
+                    onClick={handleSubmit}
+                  >
+                    Submit Exam
+                    <span className="material-symbols-outlined ml-2">
+                      check_circle
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={isSubmitted}
+                    onClick={handleNext}
+                  >
+                    Next
+                    <span className="material-symbols-outlined ml-2">
+                      arrow_forward
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        </footer>
-      </div>
+          </footer>
+        </div>)}
+      </>
     );
   }
   

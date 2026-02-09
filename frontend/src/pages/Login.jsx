@@ -28,7 +28,7 @@ export default function Login() {
         await createUserWithEmailAndPassword(auth, email, password);
       }
 
-      navigate("/exams");
+      navigate("/welcome");
     } catch (err) {
       mapFirebaseError(err.code);
     } finally {
@@ -40,7 +40,7 @@ export default function Login() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      navigate("/exams");
+      navigate("/welcome");
     } catch (err) {
       mapFirebaseError(err.code);
     }

@@ -7,6 +7,8 @@ export default function AdminExams() {
   const [icon, setIcon] = useState("");
   const [examNames, setExamNames] = useState("");
   const [exams, setExams] = useState([]);
+  const [category, setCategory] = useState("");
+
   const [subjects, setSubjects] = useState([]);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
 
@@ -30,22 +32,24 @@ export default function AdminExams() {
   }, []);  
 
   const addExam = async () => {
-    if (!examType || !icon || !examNames) return;
-
+    if (!examType || !icon || !examNames || !category) return;
+  
     await addDoc(collection(db, "exams"), {
       type: examType,
       icon,
+      category,
       exams: examNames.split(",").map(e => e.trim()),
       subjects: selectedSubjects,
       createdAt: serverTimestamp()
     });
-
+  
     setExamType("");
     setIcon("");
     setExamNames("");
+    setCategory("");
     setSelectedSubjects([]);
     fetchExams();
-  };
+  };  
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -66,6 +70,37 @@ export default function AdminExams() {
           onChange={e => setIcon(e.target.value)}
           className="w-full border p-3 rounded"
         />
+
+        {/* Exam Category */}
+        <div>
+          <label className="block mb-2 font-semibold">
+            Exam Category
+          </label>
+
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { value: "basic", label: "Basic" },
+              { value: "pre-grad", label: "Pre-Graduate" },
+              { value: "post-grad", label: "Post-Graduate" }
+            ].map(c => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setCategory(c.value)}
+                className={`py-3 rounded-lg text-sm font-semibold transition
+                  ${
+                    category === c.value
+                      ? "bg-primary/10 border-2 border-primary text-primary"
+                      : "border border-gray-200 hover:border-primary/50"
+                  }
+                `}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <input
           placeholder="Exam Names (comma separated)"
           value={examNames}
@@ -125,6 +160,18 @@ export default function AdminExams() {
                 {exam.icon}
               </span>
               {exam.type}
+
+              <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase
+                ${
+                  exam.category === "basic"
+                    ? "bg-gray-100 text-gray-700"
+                    : exam.category === "pre-grad"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-purple-100 text-purple-700"
+                }`}
+              >
+                {exam.category}
+              </span>
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">

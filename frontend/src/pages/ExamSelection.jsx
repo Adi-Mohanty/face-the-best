@@ -1,4 +1,34 @@
+import { useNavigate } from "react-router-dom";
+import ExamCategorySection from "../components/ExamCategorySection";
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../services/firebase";
+
 export default function ExamSelection() {
+  const navigate = useNavigate();
+
+  const [exams, setExams] = useState([]);
+
+  /* 🔹 Fetch exams */
+  useEffect(() => {
+    const loadExams = async () => {
+      const snap = await getDocs(collection(db, "exams"));
+      setExams(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    };
+    loadExams();
+  }, []);
+
+  /* 🔹 Category split */
+  const basicExams = exams.filter(e => e.category === "basic");
+  const preGradExams = exams.filter(e => e.category === "pre-grad");
+  const postGradExams = exams.filter(e => e.category === "post-grad");
+
+  /* Exam click */
+  const handleExamClick = (exam) => {
+    localStorage.setItem("selectedExam", JSON.stringify(exam));
+    navigate("/subjects");
+  };
+
     return (
       <div className="bg-background-light dark:bg-background-dark text-[#0f0f1a] dark:text-white min-h-screen flex flex-col font-display">
         {/* Top Navigation Bar */}
@@ -39,8 +69,7 @@ export default function ExamSelection() {
           </div>
   
           {/* Exam Selection Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-24">
-            {/* Banking (Selected) */}
+          {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-24">
             <div className="group relative flex flex-col bg-white dark:bg-[#1a1a2e] p-6 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer card-selected ring-1 ring-primary">
               <div className="absolute top-4 right-4 text-primary">
                 <span className="material-symbols-outlined text-2xl font-bold">check_circle</span>
@@ -55,7 +84,6 @@ export default function ExamSelection() {
               </div>
             </div>
   
-            {/* SSC */}
             <div className="group relative flex flex-col bg-white dark:bg-[#1a1a2e] p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer border-2 border-transparent">
               <div className="mb-6 w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[#555591] dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-3xl">groups</span>
@@ -67,7 +95,6 @@ export default function ExamSelection() {
               </div>
             </div>
   
-            {/* Engineering */}
             <div className="group relative flex flex-col bg-white dark:bg-[#1a1a2e] p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer border-2 border-transparent">
               <div className="mb-6 w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[#555591] dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-3xl">engineering</span>
@@ -79,7 +106,6 @@ export default function ExamSelection() {
               </div>
             </div>
   
-            {/* Medical */}
             <div className="group relative flex flex-col bg-white dark:bg-[#1a1a2e] p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer border-2 border-transparent">
               <div className="mb-6 w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[#555591] dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-3xl">medical_services</span>
@@ -91,7 +117,6 @@ export default function ExamSelection() {
               </div>
             </div>
   
-            {/* Civil Services */}
             <div className="group relative flex flex-col bg-white dark:bg-[#1a1a2e] p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer border-2 border-transparent">
               <div className="mb-6 w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[#555591] dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-3xl">policy</span>
@@ -102,31 +127,29 @@ export default function ExamSelection() {
                 <span className="text-xs font-semibold text-[#555591] dark:text-gray-400 uppercase tracking-wider">45+ Active Tests</span>
               </div>
             </div>
-          </div>
-  
-          {/* Continue Action */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-[#121220]/80 backdrop-blur-md border-t border-[#e9e9f2] dark:border-[#2a2a3a] py-6 px-6">
-            <div className="max-w-[1200px] mx-auto flex items-center justify-between">
-              <div className="hidden md:block">
-                <p className="text-sm text-[#555591] dark:text-gray-400">Step 1 of 3: Examination Selection</p>
-              </div>
-              <button className="flex min-w-[160px] cursor-pointer items-center justify-center rounded-lg h-12 px-8 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20">
-                <span>Continue</span>
-                <span className="material-symbols-outlined ml-2">arrow_forward</span>
-              </button>
-            </div>
-          </div>
+          </div> */}
+
+          <ExamCategorySection
+            title="Foundation Exams"
+            description="Build strong basics and aptitude skills"
+            exams={basicExams}
+            onExamClick={handleExamClick}
+          />
+
+          <ExamCategorySection
+            title="Undergraduate Entrance Exams"
+            description="Competitive exams after Class 12"
+            exams={preGradExams}
+            onExamClick={handleExamClick}
+          />
+
+          <ExamCategorySection
+            title="Advanced & Government Exams"
+            description="High-level professional & govt exams"
+            exams={postGradExams}
+            onExamClick={handleExamClick}
+          />
         </main>
-  
-        {/* Footer Space */}
-        <footer className="mt-auto w-full max-w-[1200px] mx-auto px-6 pb-32 pt-12 text-center">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-8 mb-6">
-            <a className="text-[#555591] dark:text-gray-400 text-sm hover:text-primary transition-colors" href="#">Privacy Policy</a>
-            <a className="text-[#555591] dark:text-gray-400 text-sm hover:text-primary transition-colors" href="#">Terms of Service</a>
-            <a className="text-[#555591] dark:text-gray-400 text-sm hover:text-primary transition-colors" href="#">Contact Support</a>
-          </div>
-          <p className="text-[#555591] dark:text-gray-500 text-sm">© 2024 Face The Best Platform. Engineered for excellence.</p>
-        </footer>
   
         <style jsx>{`
           .card-selected {

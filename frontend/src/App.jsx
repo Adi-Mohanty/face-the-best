@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import ExamSelection from "./pages/ExamSelection";
 import SubjectSelection from "./pages/SubjectSelection";
-import Instructions from "./pages/Instructions";
 import Quiz from "./pages/Quiz";
 import Result from "./pages/Result";
 import Review from "./pages/Review";
@@ -15,6 +14,7 @@ import AdminExams from "./pages/AdminExams";
 import AdminSubjects from "./pages/AdminSubjects";
 import AdminRoute from "./components/AdminRoute";
 import Unauthorized from "./pages/Unauthorized";
+import Welcome from "./pages/Welcome";
 
 export default function App() {
   return (
@@ -23,6 +23,13 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" />} />
 
         <Route path="/login" element={<Login />} />
+
+        <Route
+          path="/welcome" element={
+          <ProtectedRoute>
+            <Welcome />
+          </ProtectedRoute>}
+        />
         <Route path="/exams" element={
           <ProtectedRoute>
             <ExamSelection />
@@ -30,10 +37,6 @@ export default function App() {
         <Route path="/subjects" element={
           <ProtectedRoute>
             <SubjectSelection />
-          </ProtectedRoute>} />
-        <Route path="/instructions" element={
-          <ProtectedRoute>
-            <Instructions />
           </ProtectedRoute>} />
         <Route path="/quiz" element={
           <ProtectedRoute>

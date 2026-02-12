@@ -28,8 +28,22 @@ export const submitAttempt = onCall(
     throw new HttpsError("invalid-argument", "Missing data");
   }
 
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "No questions provided"
+    );
+  }
+  
+  if (!Array.isArray(responses)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Invalid responses"
+    );
+  }  
+
   // 🔒 Recalculate result (never trust frontend)
-  const totalQuestions = questions.length;
+  const totalQuestions = questions.length || 0;
   const attempted = responses.filter(
     (r: AttemptResponse) => r.selectedOption !== null
   );
@@ -49,16 +63,22 @@ export const submitAttempt = onCall(
         )
       : 0;
 
-  const result = {
-    score: correct.length,
-    accuracy: correct.length / attempted.length,
-    correctCount: correct.length,
-    attemptedCount: attempted.length,
-    skippedCount: totalQuestions - attempted.length,
-    totalQuestions,
-    totalTimeMs,
-    avgTimeMs
-  };
+      const result = {
+        score: correct.length,
+        accuracy:
+          attempted.length > 0
+            ? correct.length / attempted.length
+            : 0,
+        correctCount: correct.length,
+        attemptedCount: attempted.length,
+        skippedCount:
+          totalQuestions > 0
+            ? totalQuestions - attempted.length
+            : 0,
+        totalQuestions: totalQuestions,
+        totalTimeMs: isNaN(totalTimeMs) ? 0 : totalTimeMs,
+        avgTimeMs: isNaN(avgTimeMs) ? 0 : avgTimeMs
+      };      
 
   const db = admin.firestore();
   const attemptRef = db.collection("attempts").doc();

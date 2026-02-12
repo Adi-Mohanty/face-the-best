@@ -33,6 +33,7 @@ export default function Quiz() {
     const [questions, setQuestions] = useState([]);
     const [questionStartTime, setQuestionStartTime] = useState(Date.now());
     const [responses, setResponses] = useState({});
+    const [showSubmitWarning, setShowSubmitWarning] = useState(false);
 
     const question = questions[currentIndex];
     // console.log("question :", question);
@@ -179,7 +180,10 @@ export default function Quiz() {
     
       setSkipped(prev => new Set(prev).add(question.id));
       
-      if (currentIndex < totalQuestions - 1) {
+      if (currentIndex === totalQuestions - 1) {
+        // 🚀 Auto-submit if last question
+        handleSubmitClick();
+      } else {
         goToQuestion(currentIndex + 1);
       }
     };    
@@ -287,7 +291,21 @@ export default function Quiz() {
         console.error("Failed to submit attempt", err);
         setIsSubmitted(false);
       }
-    };    
+    };  
+    
+    
+    const handleSubmitClick = () => {
+      const unansweredCount =
+        totalQuestions - Object.keys(answers).length;
+    
+      if (unansweredCount > 0) {
+        setShowSubmitWarning(true);
+        return;
+      }
+    
+      handleSubmit();
+    };
+    
   
     /* ---------------- PROGRESS ---------------- */
     const answeredCount = Object.keys(answers).length;
@@ -334,6 +352,47 @@ export default function Quiz() {
           <InstructionsModal
             onConfirm={() => setPhase("exam")}
           />
+        )}
+
+        {showSubmitWarning && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-slate-900 rounded-xl p-8 w-[420px] shadow-2xl">
+              
+              <h2 className="text-xl font-bold mb-4">
+                Unanswered Questions Remaining
+              </h2>
+
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                You still have{" "}
+                <span className="font-bold">
+                  {totalQuestions - Object.keys(answers).length}
+                </span>{" "}
+                unanswered question(s).
+                <br /><br />
+                Are you sure you want to submit?
+              </p>
+
+              <div className="flex justify-end gap-4">
+                <button
+                  className="px-5 py-2 rounded-lg border font-semibold"
+                  onClick={() => setShowSubmitWarning(false)}
+                >
+                  Continue Exam
+                </button>
+
+                <button
+                  className="px-5 py-2 rounded-lg bg-red-600 text-white font-semibold"
+                  onClick={() => {
+                    setShowSubmitWarning(false);
+                    handleSubmit();
+                  }}
+                >
+                  Submit Anyway
+                </button>
+              </div>
+
+            </div>
+          </div>
         )}
 
         {/* Quiz UI */}
@@ -540,7 +599,7 @@ export default function Quiz() {
                 {currentIndex === totalQuestions - 1 ? (
                   <button
                     className="px-8 h-11 rounded-lg bg-primary text-white font-bold flex items-center"
-                    onClick={handleSubmit}
+                    onClick={handleSubmitClick}
                   >
                     Submit Exam
                     <span className="material-symbols-outlined ml-2">

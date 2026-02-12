@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { collection, query, where, getDocs, documentId } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 export default function Review() {
   const navigate = useNavigate();
@@ -16,35 +18,66 @@ export default function Review() {
 
   useEffect(() => {
     async function fetchAttemptAndQuestions() {
-      if (!attemptId) return;
-  
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+
       const snap = await getDoc(doc(db, "attempts", attemptId));
-  
+
       if (!snap.exists()) {
         navigate("/exams");
         return;
       }
-  
+
       const attemptData = snap.data();
+
+      // 🔒 OWNER VALIDATION
+      if (attemptData.userId !== user.uid) {
+        navigate("/exams");
+        return;
+      }
+
       setAttempt(attemptData);
   
-      // 🔥 Fetch actual question documents
+      // 🔥 Fetch actual question documents in batches
       const questionIds = attemptData.questions;
-  
-      const questionPromises = questionIds.map(id =>
-        getDoc(doc(db, "questions", id))
+
+      // Firestore "in" supports max 10 IDs per query
+      const chunkSize = 10;
+      const chunks = [];
+
+      for (let i = 0; i < questionIds.length; i += chunkSize) {
+        chunks.push(questionIds.slice(i, i + chunkSize));
+      }
+
+      let allQuestions = [];
+
+      for (const chunk of chunks) {
+        const q = query(
+          collection(db, "questions"),
+          where(documentId(), "in", chunk)
+        );
+
+        const snap = await getDocs(q);
+
+        snap.forEach(doc => {
+          allQuestions.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+      }
+
+      // 🔥 Preserve original order
+      const orderedQuestions = questionIds.map(id =>
+        allQuestions.find(q => q.id === id)
       );
-  
-      const questionSnaps = await Promise.all(questionPromises);
-  
-      const loadedQuestions = questionSnaps
-        .filter(snap => snap.exists())
-        .map(snap => ({
-          id: snap.id,
-          ...snap.data()
-        }));
-  
-      setQuestionDocs(loadedQuestions);
+
+      setQuestionDocs(orderedQuestions);
       setLoading(false);
     }
   

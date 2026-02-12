@@ -42,11 +42,11 @@ export default function App() {
           <ProtectedRoute>
             <Quiz />
           </ProtectedRoute>} />
-        <Route path="/result" element={
+        <Route path="/result/:attemptId" element={
           <ProtectedRoute>
             <Result />
           </ProtectedRoute>} />
-        <Route path="/review" element={
+        <Route path="/review/:attemptId" element={
           <ProtectedRoute>
             <Review />  
           </ProtectedRoute>} />

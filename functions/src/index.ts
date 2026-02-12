@@ -526,3 +526,5 @@ export const ping = onCall(() => {
 //     // requireAdmin(request);
 //     return { message: "Admin access confirmed" };
 // });
+
+export { submitAttempt } from "./attempts/submitAttempt";

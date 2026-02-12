@@ -1,44 +1,88 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { db } from "../services/firebase";
 
 export default function Result() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const { attemptId } = useParams();
 
-  if (!state) {
-    navigate("/exams");
-    return null;
+  const [attempt, setAttempt] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!attemptId) {
+      navigate("/exams");
+      return;
+    }
+
+    const fetchAttempt = async () => {
+      try {
+        const snap = await getDoc(doc(db, "attempts", attemptId));
+
+        if (!snap.exists()) {
+          navigate("/exams");
+          return;
+        }
+
+        setAttempt({ attemptId: snap.id, ...snap.data() }); // keep ID
+      } catch (err) {
+        console.error("Failed to fetch attempt", err);
+        navigate("/exams");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttempt();
+  }, [attemptId, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold text-slate-500">
+          Loading results…
+        </p>
+      </div>
+    );
   }
 
+  if (!attempt) return null;
+  
+  const { result, responses, exam, subject } = attempt;
+
   const {
-    answers,
-    skipped,
-    markedForReview,
     score,
-    timeTaken,
-    totalTime,
-    questions
-  } = state;
+    accuracy,
+    totalTimeMs,
+    avgTimeMs,
+    correctCount,
+    attemptedCount,
+    skippedCount,
+    totalQuestions
+  } = result;
+  
+  const wrong = attemptedCount - correctCount;
+  const markedCount = responses.filter(r => r.markedForReview).length;
 
-  const totalQuestions = questions.length;
-
-  const correct = score;
-  const attempted = Object.keys(answers).length;
-  const skippedCount = skipped.length;
-  const markedCount = markedForReview.length;
-  const wrong = attempted - correct;
-  const accuracy = attempted === 0 ? 0 : Math.round((correct / attempted) * 100);
-  const timeUsed = totalTime - timeTaken;
+  const attemptedPercent = Math.round(
+    (attemptedCount / totalQuestions) * 100
+  );
+  const speedScore = Math.max(
+    0,
+    100 - Math.round((avgTimeMs / 1000) * 2)
+  );  
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
-  };
+  };  
 
   const timeEfficiencyPercent = Math.min(
     100,
-    Math.round((timeUsed / totalTime) * 100)
-  );
+    Math.round((avgTimeMs / 1000 / 60) * 100)
+  );  
 
     return (
       <div className="bg-background-light dark:bg-background-dark text-[#0f0f1a] dark:text-white min-h-screen">
@@ -110,7 +154,7 @@ export default function Result() {
                 Quiz Results
               </p>
               <p className="text-[#555591] dark:text-gray-400 text-base font-normal">
-                UPSC Prelims Mock #12 - Performance Summary
+                {exam?.type || "—"} - {subject?.name || "—"}
               </p>
             </div>
   
@@ -163,7 +207,7 @@ export default function Result() {
   
                   <div className="absolute flex flex-col items-center">
                     <span className="text-4xl font-black text-[#0f0f1a] dark:text-white">
-                      {accuracy}%
+                      {Math.round(accuracy * 100)}%
                     </span>
                     <span className="text-xs font-bold text-[#555591] dark:text-gray-400 uppercase tracking-widest">
                       Accuracy
@@ -177,9 +221,9 @@ export default function Result() {
                       Your Total Score
                     </p>
                     <h3 className="text-6xl font-black text-primary dark:text-white leading-none">
-                      {correct}
+                      {score}
                       <span className="text-2xl text-[#555591] dark:text-gray-500 font-normal">
-                        / {totalQuestions}
+                        / {totalQuestions * 1}
                       </span>
                     </h3>
                   </div>
@@ -209,12 +253,12 @@ export default function Result() {
                     </span>
                   </div>
                   <p className="text-[#0f0f1a] dark:text-white text-3xl font-bold">
-                      {correct}
+                      {correctCount}
                   </p>
                   <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#078841]"
-                      style={{ width: `${(correct / totalQuestions) * 100}%` }}
+                      style={{ width: `${(correctCount / totalQuestions) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -292,10 +336,10 @@ export default function Result() {
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-6 justify-between">
                       <p className="text-[#0f0f1a] dark:text-white text-base font-medium">
-                        Time Efficiency
+                      Avg per question
                       </p>
                       <p className="text-[#0f0f1a] dark:text-white text-sm font-normal">
-                        {formatTime(timeTaken)} / {formatTime(totalTime)}
+                        {formatTime(Math.round(avgTimeMs / 1000))}
                       </p>
                     </div>
                     <div className="rounded-full bg-[#d2d2e5] dark:bg-gray-800">
@@ -311,19 +355,42 @@ export default function Result() {
   
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-6 justify-between">
-                      <p className="text-[#0f0f1a] dark:text-white text-base font-medium">
-                        Subject Focus: History
+                      <p className="text-base font-medium">
+                        Attempt Coverage
                       </p>
-                      <p className="text-[#0f0f1a] dark:text-white text-sm font-normal">
-                        92% Mastery
+                      <p className="text-sm font-normal">
+                        {attemptedPercent}%
                       </p>
                     </div>
                     <div className="rounded-full bg-[#d2d2e5] dark:bg-gray-800">
                       <div
                         className="h-2 rounded-full bg-[#078841]"
-                        style={{ width: "92%" }}
+                        style={{ width: `${attemptedPercent}%` }}
                       />
                     </div>
+                    <p className="text-sm text-[#555591]">
+                      You attempted {attemptedCount} out of {totalQuestions} questions.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex gap-6 justify-between">
+                      <p className="text-base font-medium">
+                        Speed vs Accuracy
+                      </p>
+                      <p className="text-sm font-normal">
+                        Balanced
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-[#d2d2e5] dark:bg-gray-800">
+                      <div
+                        className="h-2 rounded-full bg-primary"
+                        style={{ width: `${speedScore}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-[#555591]">
+                      Faster responses with stable accuracy improve rankings.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -382,38 +449,6 @@ export default function Result() {
               </p>
             </div>
 
-            {/* Quick Actions Card */}
-            <div className="bg-white dark:bg-[#1a1a2e] rounded-xl border border-[#d2d2e5] dark:border-[#2d2d45] p-6">
-              <h4 className="text-lg font-bold mb-6">
-                Next Steps
-              </h4>
-
-              <div className="flex flex-col gap-4">
-                <button onClick={() => navigate("/review", { state })} className="w-full flex items-center justify-between px-5 py-4 rounded-lg bg-primary text-white font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined">
-                      assignment_turned_in
-                    </span>
-                    Review Solutions
-                  </div>
-                  <span className="material-symbols-outlined">
-                    chevron_right
-                  </span>
-                </button>
-
-                <button onClick={() => navigate("/exams")} className="w-full flex items-center justify-between px-5 py-4 rounded-lg border-2 border-primary text-primary dark:text-blue-400 font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined">
-                      restart_alt
-                    </span>
-                    Take Another Quiz
-                  </div>
-                  <span className="material-symbols-outlined">
-                    chevron_right
-                  </span>
-                </button>
-              </div>
-            </div>
 
             {/* Global Rank Stats */}
             <div className="bg-white dark:bg-[#1a1a2e] rounded-xl border border-[#d2d2e5] dark:border-[#2d2d45] p-6">
@@ -445,17 +480,45 @@ export default function Result() {
                 </div>
               </div>
             </div>
+
+            {/* Quick Actions Card */}
+            <div className="bg-white dark:bg-[#1a1a2e] rounded-xl border border-[#d2d2e5] dark:border-[#2d2d45] p-6">
+              <h4 className="text-lg font-bold mb-6">
+                Next Steps
+              </h4>
+
+              <div className="flex flex-col gap-4">
+                <button 
+                onClick={() => navigate(`/review/${attempt.attemptId}`)} 
+                className="w-full flex items-center justify-between px-5 py-4 rounded-lg bg-primary text-white font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined">
+                      assignment_turned_in
+                    </span>
+                    Review Solutions
+                  </div>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
+                </button>
+
+                <button onClick={() => navigate("/exams")} className="w-full flex items-center justify-between px-5 py-4 rounded-lg border-2 border-primary text-primary dark:text-blue-400 font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined">
+                      restart_alt
+                    </span>
+                    Take Another Quiz
+                  </div>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </main>
-
-      {/* Footer Space */}
-      <footer className="mt-12 py-8 border-t border-[#e9e9f2] dark:border-[#2d2d45] text-center text-[#555591] dark:text-gray-500 text-sm">
-        <p>
-          © 2024 Face The Best. All exam materials are subject to copyright.
-        </p>
-      </footer>
     </div>
   );
 }
-  

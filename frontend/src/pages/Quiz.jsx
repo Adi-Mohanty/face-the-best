@@ -4,6 +4,8 @@ import { fetchQuestions } from "../services/questions";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
 import { auth } from "../services/firebase";
 import InstructionsModal from "../components/Instructions";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../services/firebase";
 
 const STORAGE_KEY = "exam-progress";
 const TOTAL_TIME = 600;
@@ -33,15 +35,14 @@ export default function Quiz() {
     const [responses, setResponses] = useState({});
 
     const question = questions[currentIndex];
+    // console.log("question :", question);
     const totalQuestions = questions.length;
+    const [quizStartTime] = useState(Date.now());
+    const submitAttempt = httpsCallable(functions, "submitAttempt");
 
     useEffect(() => {
       console.log("Current user:", auth.currentUser);
-    }, []);
-
-    useEffect(() => {
-      setQuestionStartTime(Date.now());
-    }, [currentIndex]);    
+    }, []); 
 
     useEffect(() => {
       const load = async () => {
@@ -149,15 +150,22 @@ export default function Quiz() {
     };    
   
     /* ---------------- NAVIGATION ---------------- */
-    const handleNext = () => {
+    const goToQuestion = (index) => {
+      if (index < 0 || index >= totalQuestions) return;
+      // console.log("index: ", index);
+      setQuestionStartTime(Date.now());
+      setCurrentIndex(index);
+    };
+
+    const goNext = () => {
       if (currentIndex < totalQuestions - 1) {
-        setCurrentIndex(i => i + 1);
+        goToQuestion(currentIndex + 1);
       }
     };
-  
-    const handlePrevious = () => {
+    
+    const goPrev = () => {
       if (currentIndex > 0) {
-        setCurrentIndex(i => i - 1);
+        goToQuestion(currentIndex - 1);
       }
     };
   
@@ -170,7 +178,10 @@ export default function Quiz() {
       });
     
       setSkipped(prev => new Set(prev).add(question.id));
-      handleNext();
+      
+      if (currentIndex < totalQuestions - 1) {
+        goToQuestion(currentIndex + 1);
+      }
     };    
 
     const handleMarkForReview = () => {
@@ -194,13 +205,10 @@ export default function Quiz() {
         }        
       
         // Move to next question automatically (standard exam behavior)
-        handleNext();
+        if (currentIndex < totalQuestions - 1) {
+          goToQuestion(currentIndex + 1);
+        }
       };
-      
-  
-    const jumpToQuestion = (index) => {
-      setCurrentIndex(index);
-    };
   
     /* ---------------- STATUS ---------------- */
     const getStatus = (q, index) => {
@@ -212,13 +220,31 @@ export default function Quiz() {
     };      
   
     /* ---------------- SCORE ---------------- */
+    const buildFinalResponses = () => {
+      return questions.map(q => {
+        const r = responses[q.id];
+    
+        return {
+          questionId: q.id,
+          selectedOption: r?.selectedOption ?? null,
+          skipped: r?.skipped ?? true,
+          markedForReview: r?.markedForReview ?? false,
+          timeTakenMs: r?.timeTakenMs ?? 0,
+          isCorrect: r?.isCorrect ?? false
+        };
+      });
+    };
+
     const recordResponse = ({
       questionId,
       selectedOption,
       skipped,
       markedForReview
     }) => {
-      const timeTakenMs = Date.now() - questionStartTime;
+      const timeTakenMs = Math.max(
+        0,
+        Date.now() - questionStartTime
+      );      
       const q = questions.find(q => q.id === questionId);
     
       setResponses(prev => ({
@@ -234,71 +260,34 @@ export default function Quiz() {
           timeTakenMs
         }
       }));
-    };
-
-    const buildResultSummary = () => {
-      const responseList = Object.values(responses);
-    
-      const totalQuestions = questions.length;
-      const attempted = responseList.filter(r => !r.skipped);
-      const correct = responseList.filter(r => r.isCorrect);
-    
-      const totalTimeMs =
-        TOTAL_TIME * 1000 - timeLeft * 1000;
-    
-      const avgTimeMs =
-        attempted.length > 0
-          ? Math.round(
-              attempted.reduce((a, r) => a + r.timeTakenMs, 0) /
-                attempted.length
-            )
-          : 0;
-    
-      return {
-        totalQuestions,
-        attemptedCount: attempted.length,
-        skippedCount: totalQuestions - attempted.length,
-        correctCount: correct.length,
-        accuracy:
-          attempted.length > 0
-            ? correct.length / attempted.length
-            : 0,
-        totalTimeMs,
-        avgTimeMs,
-        score: correct.length * 1
-      };
-    };    
+    }; 
   
-    const handleSubmit = () => {
+
+    const handleSubmit = async () => {
       if (isSubmitted) return;
     
       setIsSubmitted(true);
       localStorage.removeItem(STORAGE_KEY);
     
-      const result = buildResultSummary();
-    
-      const attemptPayload = {
-        userId: auth.currentUser.uid,
-        mode: "quiz",
+      const payload = {
         exam,
         subject,
-        startedAt: Date.now() - result.totalTimeMs,
-        endedAt: Date.now(),
-    
-        responses: Object.values(responses),
-    
-        result
+        questions: questions.map(q => q.id),
+        responses: buildFinalResponses(),
+        startedAt: quizStartTime,
+        finishedAt: Date.now()
       };
     
-      // 🔒 For now: pass forward
-      // 🔜 Next step: send to Cloud Function
-      navigate("/result", {
-        state: {
-          attempt: attemptPayload,
-          questions
-        }
-      });
-    };                
+      try {
+        const res = await submitAttempt(payload);
+    
+        navigate(`/result/${res.data.attemptId}`)       
+        
+      } catch (err) {
+        console.error("Failed to submit attempt", err);
+        setIsSubmitted(false);
+      }
+    };    
   
     /* ---------------- PROGRESS ---------------- */
     const answeredCount = Object.keys(answers).length;
@@ -465,7 +454,7 @@ export default function Quiz() {
                 return (
                   <button
                     key={q.id}
-                    onClick={() => jumpToQuestion(i)}
+                    onClick={() => goToQuestion(i)}
                     className={`${base} ${map[status]}`}
                   >
                     {i + 1}
@@ -527,7 +516,7 @@ export default function Quiz() {
             <div className="max-w-[1440px] mx-auto h-full px-8 flex items-center justify-between">
               <div className="flex gap-4">
                 <button className={`px-6 h-11 rounded-lg border font-bold flex items-center ${
-                  markedForReview.has(question.id)
+                  markedForReview?.has(question?.id)
                       ? "border-purple-500 text-purple-600"
                       : ""
                   }
@@ -544,7 +533,7 @@ export default function Quiz() {
               </div>
     
               <div className="flex gap-4">
-                <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handlePrevious}>
+                <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={goPrev}>
                   Previous
                 </button>
 
@@ -562,7 +551,7 @@ export default function Quiz() {
                   <button
                     className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
                     disabled={isSubmitted}
-                    onClick={handleNext}
+                    onClick={goNext}
                   >
                     Next
                     <span className="material-symbols-outlined ml-2">

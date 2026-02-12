@@ -1,23 +1,75 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../services/firebase";
 
 export default function Review() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const { attemptId } = useParams();
 
-  if (!state) {
-    navigate("/exams");
-    return null;
-  }
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(null);
+  const [questionDocs, setQuestionDocs] = useState([]);
 
-  const { questions, answers } = state;
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  useEffect(() => {
+    async function fetchAttemptAndQuestions() {
+      if (!attemptId) return;
+  
+      const snap = await getDoc(doc(db, "attempts", attemptId));
+  
+      if (!snap.exists()) {
+        navigate("/exams");
+        return;
+      }
+  
+      const attemptData = snap.data();
+      setAttempt(attemptData);
+  
+      // 🔥 Fetch actual question documents
+      const questionIds = attemptData.questions;
+  
+      const questionPromises = questionIds.map(id =>
+        getDoc(doc(db, "questions", id))
+      );
+  
+      const questionSnaps = await Promise.all(questionPromises);
+  
+      const loadedQuestions = questionSnaps
+        .filter(snap => snap.exists())
+        .map(snap => ({
+          id: snap.id,
+          ...snap.data()
+        }));
+  
+      setQuestionDocs(loadedQuestions);
+      setLoading(false);
+    }
+  
+    fetchAttemptAndQuestions();
+  }, [attemptId]);  
+
+  if (loading) return <div>Loading...</div>;
+  if (!attempt) return null;
+
+  const { responses } = attempt;
+  const questions = questionDocs;
+
+  const responseMap = Object.fromEntries(
+    responses.map(r => [r.questionId, r])
+  );
+
   const question = questions[currentIndex];
-  const userAnswer = answers[question.id];
-  const isCorrect = userAnswer === question.correctOption;
+  if (!question) return null;
+
+  const response = responseMap[question.id];
+
+  const userAnswer = response?.selectedOption;
+  const isCorrect = response?.isCorrect;
   const totalQuestions = questions.length;
+  const isSkipped = response?.selectedOption === null;
 
   const goNext = () => {
     if (currentIndex < totalQuestions - 1) {
@@ -36,10 +88,10 @@ export default function Review() {
   };
 
   const getQuestionStatus = (q) => {
-    if (answers[q.id] === undefined) return "unattempted";
-    if (answers[q.id] === q.correctOption) return "correct";
-    return "incorrect";
-  };
+    const r = responseMap[q.id];
+    if (!r || r.selectedOption === null) return "unattempted";
+    return r.isCorrect ? "correct" : "incorrect";
+  };    
 
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-[#0f0f1a] dark:text-white">
@@ -100,27 +152,7 @@ export default function Review() {
         </header>
   
         <main className="max-w-[1280px] mx-auto px-4 md:px-10 py-6">
-  
-          {/* Breadcrumbs */}
-          <div className="flex flex-wrap gap-2 py-2">
-            <a className="text-[#555591] dark:text-gray-400 text-sm font-medium hover:underline" href="#">
-              UPSC CSE 2024
-            </a>
-            <span className="text-[#555591] dark:text-gray-400 text-sm font-medium">
-              /
-            </span>
-            <a className="text-[#555591] dark:text-gray-400 text-sm font-medium hover:underline" href="#">
-              Mock 1
-            </a>
-            <span className="text-[#555591] dark:text-gray-400 text-sm font-medium">
-              /
-            </span>
-            <span className="text-[#0f0f1a] dark:text-white text-sm font-medium">
-              General Studies - I
-            </span>
-          </div>
-  
-          <div className="flex flex-col lg:flex-row gap-6 mt-4">
+          <div className="flex flex-col lg:flex-row gap-6">
   
             {/* Left Side */}
             <div className="flex-1 flex flex-col gap-6">
@@ -129,50 +161,46 @@ export default function Review() {
               <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-[#d2d2e5] dark:border-white/10">
                 <div className="flex flex-wrap justify-between items-start gap-4">
                   <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                    <h1 className="text-2xl md:text-2xl font-bold tracking-tight">
                       Question {currentIndex + 1} of {totalQuestions}
                     </h1>
+
+                    <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
+                      Exam:{" "}
+                      <span className="font-medium text-[#0f0f1a] dark:text-white">
+                        {attempt.exam?.type || "—"}
+                      </span>
+                    </p>
+
                     <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
                       Subject:{" "}
                       <span className="font-medium text-[#0f0f1a] dark:text-white">
-                        Indian Polity &amp; Governance
+                        {attempt.subject?.name || "—"}
                       </span>
                     </p>
                   </div>
   
                   <div className="flex flex-col items-end gap-2">
-                    {/* <span className="px-3 py-1 rounded-full bg-error-bg text-error-border text-sm font-bold border border-error-border flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[18px]">
-                        close
-                      </span>
-                      Incorrect
-                    </span> */}
-
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1 ${
-                        isCorrect
-                          ? "bg-success-bg text-success-border border-success-border"
-                          : userAnswer === undefined
-                          ? "bg-gray-100 text-gray-500 border-gray-300"
-                          : "bg-error-bg text-error-border border-error-border"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {isCorrect ? "check" : userAnswer === undefined ? "help" : "close"}
-                      </span>
-                      {isCorrect
-                        ? "Correct"
-                        : userAnswer === undefined
-                        ? "Unattempted"
-                        : "Incorrect"}
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1 ${
+                      isSkipped
+                        ? "bg-gray-100 text-gray-500 border-gray-300"
+                        : isCorrect
+                        ? "bg-success-bg text-success-border border-success-border"
+                        : "bg-error-bg text-error-border border-error-border"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {isSkipped ? "remove" : isCorrect ? "check" : "close"}
                     </span>
 
-                    <button onClick={() => navigate(-1)} className="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
-                      <span className="material-symbols-outlined text-[18px]">
-                        arrow_back
-                      </span>
-                      Back to Result Summary
-                    </button>
+                    {isSkipped
+                      ? "Skipped"
+                      : isCorrect
+                      ? "Correct"
+                      : "Incorrect"
+                    }
+                  </span>
                   </div>
                 </div>
               </div>
@@ -186,7 +214,11 @@ export default function Review() {
                     </span>
                     <p className="text-sm font-medium">Your Time</p>
                   </div>
-                  <p className="text-2xl font-bold">1m 45s</p>
+                  <p className="text-xl font-bold">
+                    {response
+                    ? `${Math.round(response.timeTakenMs / 1000)}s`
+                    : "—"}
+                  </p>
                 </div>
   
                 <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-900 border border-[#d2d2e5] dark:border-white/10">
@@ -196,17 +228,19 @@ export default function Review() {
                     </span>
                     <p className="text-sm font-medium">Avg. Time</p>
                   </div>
-                  <p className="text-2xl font-bold">1m 12s</p>
+                  <p className="text-xl font-bold">
+                    {Math.round(attempt.result.avgTimeMs / 1000)}s
+                  </p>
                 </div>
   
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-900 border border-[#d2d2e5] dark:border-white/10">
-                  <div className="flex items-center gap-2 text-[#555591] dark:text-gray-400">
-                    <span className="material-symbols-outlined text-[20px]">
-                      trending_up
-                    </span>
-                    <p className="text-sm font-medium">Difficulty</p>
+                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-900 border">
+                  <div className="flex items-center gap-2 text-[#555591]">
+                    <span className="material-symbols-outlined">psychology</span>
+                    <p className="text-sm font-medium">Decision</p>
                   </div>
-                  <p className="text-2xl font-bold">Medium</p>
+                  <p className="text-xl font-bold">
+                    {response?.markedForReview ? "Doubtful" : "Confident"}
+                  </p>
                 </div>
               </div>
   
@@ -215,7 +249,7 @@ export default function Review() {
                 <div className="p-8">
                   <QuestionRenderer
                     question={question}
-                    userAnswer={answers[question.id]}
+                    userAnswer={userAnswer}
                     mode="review"
                   /> 
                 </div>
@@ -269,7 +303,7 @@ export default function Review() {
               </div>
 
               <div className="grid grid-cols-5 gap-2">
-              {questions.map((q, i) => {
+                {questions.map((q, i) => {
                   const status = getQuestionStatus(q);
 
                   const colorMap = {
@@ -312,37 +346,30 @@ export default function Review() {
                   </span>
                 </div>
               </div>
+
+              <button 
+                onClick={() => navigate(-1)} 
+                className="flex items-center gap-2 px-6 py-2 rounded-lg border-2 border-primary text-primary font-bold hover:bg-primary/10"
+              >
+                <span className="material-symbols-outlined">
+                  arrow_back
+                </span>
+                Back to Result Summary
+              </button>
+
+              <button
+                onClick={() => navigate("/exams")}
+                className="flex items-center gap-2 px-6 py-2 rounded-lg border-2 border-primary bg-primary text-white font-bold hover:bg-primary/10"
+              >
+                <span className="material-symbols-outlined">
+                  restart_alt
+                </span>
+                Take Another Quiz
+              </button>
             </div>
           </aside>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="mt-12 py-8 px-10 lg:px-40 border-t border-[#e9e9f2] dark:border-white/10">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 text-[#555591] dark:text-gray-400">
-            <span className="font-bold text-lg">
-              Face The Best
-            </span>
-            <span className="text-sm">
-              © 2024 Face The Best. All rights reserved.
-            </span>
-          </div>
-
-          <div className="flex gap-6">
-            <a className="text-sm font-medium text-[#555591] dark:text-gray-400 hover:text-primary" href="#">
-              Help Center
-            </a>
-            <a className="text-sm font-medium text-[#555591] dark:text-gray-400 hover:text-primary" href="#">
-              Terms of Service
-            </a>
-            <a className="text-sm font-medium text-[#555591] dark:text-gray-400 hover:text-primary" href="#">
-              Privacy Policy
-            </a>
-          </div>
-        </div>
-      </footer>
-
     </div>
   );
 }

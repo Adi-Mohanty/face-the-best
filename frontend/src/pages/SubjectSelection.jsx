@@ -45,56 +45,6 @@ export default function SubjectSelection() {
     
     return (
       <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#0f0f1a] dark:text-white transition-colors duration-200">
-  
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-50 bg-white dark:bg-background-dark border-b border-solid border-[#e9e9f2] dark:border-gray-800">
-          <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 py-3">
-            <div className="flex items-center gap-4">
-              <div className="size-8 text-primary">
-                <svg
-                  fill="currentColor"
-                  viewBox="0 0 48 48"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" />
-                </svg>
-              </div>
-              <h1 className="text-[#0f0f1a] dark:text-white text-xl font-bold leading-tight tracking-tight">
-                Face The Best
-              </h1>
-            </div>
-  
-            <nav className="hidden md:flex items-center gap-9">
-              <a className="text-[#0f0f1a] dark:text-gray-300 text-sm font-medium hover:text-primary transition-colors" href="#">
-                Exams
-              </a>
-              <a className="text-[#0f0f1a] dark:text-gray-300 text-sm font-medium hover:text-primary transition-colors" href="#">
-                Results
-              </a>
-              <a className="text-[#0f0f1a] dark:text-gray-300 text-sm font-medium hover:text-primary transition-colors" href="#">
-                Dashboard
-              </a>
-              <a className="text-[#0f0f1a] dark:text-gray-300 text-sm font-medium hover:text-primary transition-colors" href="#">
-                Support
-              </a>
-            </nav>
-  
-            <div className="flex items-center gap-3">
-              <button className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#e9e9f2] dark:bg-gray-800 text-[#0f0f1a] dark:text-white hover:bg-primary/10 transition-colors">
-                <span className="material-symbols-outlined">notifications</span>
-              </button>
-  
-              <div
-                className="h-10 w-10 rounded-full bg-cover bg-center border border-gray-200"
-                style={{
-                  backgroundImage:
-                    'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCO4ZUPIJqUwUP3SRT-9ng0gvP3KLyn8YFyE3NwR7qYeDW6BMLHrJ7JzTkkR77jp5ZVTsgzrnpjx6clP7mOYPXEQDKTXbBThCroTCmVhPnI8HPWtlSE8KyrwYGxIqGIAFYPoYByEDS6pZEu3k0nPrnL95RceVRtfF7OrEabVvI2CaagjQNovrPcNHNsh5aX7NqC_TZ6sEbXm-DCoSChi3C8tRFiMl7Ix6fwIR3Ibi73GXSrFI46OUL7sCDCVkG9FjgjE5G8lXS0o9wo")',
-                }}
-              />
-            </div>
-          </div>
-        </header>
-  
         <main className="max-w-[1200px] mx-auto px-6 py-8">
           {/* Page Heading */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">

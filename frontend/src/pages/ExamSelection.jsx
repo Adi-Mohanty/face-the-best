@@ -31,35 +31,6 @@ export default function ExamSelection() {
 
     return (
       <div className="bg-background-light dark:bg-background-dark text-[#0f0f1a] dark:text-white min-h-screen flex flex-col font-display">
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-50 w-full border-b border-[#e9e9f2] dark:border-[#2a2a3a] bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
-          <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary p-1.5 rounded-lg flex items-center justify-center">
-                <svg className="size-6 text-white" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path>
-                </svg>
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-primary dark:text-white">Face The Best</h1>
-            </div>
-            <div className="flex items-center gap-6">
-              <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#555591] dark:text-gray-400">
-                <a className="hover:text-primary dark:hover:text-white transition-colors" href="#">Courses</a>
-                <a className="hover:text-primary dark:hover:text-white transition-colors" href="#">Test Series</a>
-                <a className="hover:text-primary dark:hover:text-white transition-colors" href="#">Resources</a>
-              </nav>
-              <div className="flex items-center gap-3 pl-6 border-l border-[#e9e9f2] dark:border-[#2a2a3a]">
-                <button className="p-2 text-[#555591] dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                  <span className="material-symbols-outlined">help_outline</span>
-                </button>
-                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/20">
-                  <div className="bg-center bg-no-repeat bg-cover size-full" data-alt="User avatar profile picture placeholder" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuD3SOcqxT3nt5d6xu2NxafNy_St29t_aq7c-WecKzPIVyMN2nnDD96JETPjVyx9lfX6iJziVef1hhIM42yGQ1hb96E6Of2iES0l4sTp-UzOkB4LLS9y8sBg0hzdF31TGh8RY-qZafC8G4uvUigO_DTj4hIYIVlV8J-hI7juIxXVPdvMVno3WGSHeVbP6PijKcuqI18i3-MgtCd_JCcAF1CzVrQC7bakqPzftLnmAd_TQQN-zy5H_up-nKOS9Qeetmqe2t6GqI3gAjY4")'}}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-  
         {/* Main Content */}
         <main className="flex-grow max-w-[1200px] mx-auto w-full px-6 py-12">
           {/* Page Heading */}

@@ -85,7 +85,15 @@ export default function Review() {
   }, [attemptId]);  
 
   if (loading) return <div>Loading...</div>;
-  if (!attempt) return null;
+  if (!attempt) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold text-slate-500">
+          Attempt not found.
+        </p>
+      </div>
+    );
+  }  
 
   const { responses } = attempt;
   const questions = questionDocs;
@@ -128,62 +136,6 @@ export default function Review() {
 
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-[#0f0f1a] dark:text-white">
-  
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-50 w-full border-b border-[#e9e9f2] bg-white dark:bg-background-dark dark:border-white/10 px-4 md:px-10 lg:px-40 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold leading-tight tracking-tight">
-                Face The Best
-              </h2>
-            </div>
-  
-            <div className="flex flex-1 justify-end items-center gap-8">
-              <nav className="hidden md:flex items-center gap-9">
-                <a className="text-sm font-medium hover:text-primary transition-colors" href="#">
-                  Dashboard
-                </a>
-                <a className="text-sm font-medium hover:text-primary transition-colors" href="#">
-                  My Exams
-                </a>
-                <a className="text-sm font-medium text-primary" href="#">
-                  Performance
-                </a>
-                <a className="text-sm font-medium hover:text-primary transition-colors" href="#">
-                  Study Material
-                </a>
-              </nav>
-  
-              <div className="flex items-center gap-4">
-                <button className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all">
-                  Profile
-                </button>
-  
-                <div
-                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-[#e9e9f2]"
-                  style={{
-                    backgroundImage:
-                      'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBuSiELC0UWRJJXZQNK3hI6x-Htv3EAtZIiKj2a9cYo0q3iO53nebmDxqpeQjFPqJtJCKiJ8TKuwlPsD5gqVw-WSMILE9GEBKsJvwd6ckM0Ts1K2r04BnpPLFuisKjn8Pvqy1jOTdISYiYhlFtjw6lo_syDdCdCJW0BNVXh_IQ9sZG7YEWSicktcwoRKr4cDG6iVhtIokkMfuCTipB_jwxi58FNCP1kTGKETWLKOOT3HkBnIfAJpBytrFLkcO6NQxKpPFczE2UXWUwM")',
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </header>
-  
         <main className="max-w-[1280px] mx-auto px-4 md:px-10 py-6">
           <div className="flex flex-col lg:flex-row gap-6">
   
@@ -201,14 +153,14 @@ export default function Review() {
                     <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
                       Exam:{" "}
                       <span className="font-medium text-[#0f0f1a] dark:text-white">
-                        {attempt.exam?.type || "—"}
+                        {attempt.examType || "—"}
                       </span>
                     </p>
 
                     <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
                       Subject:{" "}
                       <span className="font-medium text-[#0f0f1a] dark:text-white">
-                        {attempt.subject?.name || "—"}
+                        {attempt.subjectName || "—"}
                       </span>
                     </p>
                   </div>

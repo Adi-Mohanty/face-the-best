@@ -48,18 +48,63 @@ export default function StatementQuestion({
         return (
           <label
             key={i}
-            className={`flex items-center justify-between p-5 border-2 rounded-xl transition ${
-              isReview ? "cursor-default" : "cursor-pointer"
-            } ${styles}`}
+            onClick={() => !isReview && onSelect(i)}
+            className={`
+              relative flex items-center justify-between
+              px-4 py-3
+              rounded-lg border
+              text-sm font-medium
+              transition-all duration-150
+              select-none
+              ${
+                isReview
+                  ? "cursor-default"
+                  : "cursor-pointer hover:scale-[1.01]"
+              }
+              ${
+                isReview
+                  ? isCorrect
+                    ? "bg-emerald-50 border-emerald-400"
+                    : isUser && !isCorrect
+                    ? "bg-red-50 border-red-400"
+                    : "bg-gradient-to-b from-white to-slate-200 border-slate-300"
+                  : isUser
+                  ? `
+                    bg-gradient-to-b from-primary/90 to-primary
+                    text-white
+                    border-primary
+                    shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]
+                  `
+                  : `
+                    bg-gradient-to-b from-white to-slate-200
+                    border-slate-300
+                    shadow-[4px_4px_8px_rgba(0,0,0,0.08),_-3px_-3px_6px_rgba(255,255,255,0.9)]
+                  `
+              }
+              ${
+                !isReview &&
+                "active:shadow-[inset_3px_3px_6px_rgba(0,0,0,0.15)] active:translate-y-[1px]"
+              }
+            `}
           >
           <div className="flex items-center gap-4">
-            <input
-              type="radio"
-              name={`q-${question.id}`}
-              checked={isUser}
-              onChange={() => !isReview && onSelect(i)}
-              disabled={isReview}
-            />
+            <div
+              className={`
+                w-4 h-4 rounded-full border
+                flex items-center justify-center
+                transition-all duration-150
+                ${
+                  isUser
+                    ? "bg-white border-white"
+                    : "bg-gradient-to-b from-white to-slate-200 border-slate-400"
+                }
+              `}
+            >
+              {isUser && (
+                <div className="w-2 h-2 rounded-full bg-primary"></div>
+              )}
+            </div>
+
             <span>{opt}</span>
           </div>
 

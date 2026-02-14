@@ -343,7 +343,10 @@ export default function Quiz() {
       );
     }
 
-    
+    const radius = 48;
+    const circumference = 2 * Math.PI * radius;
+    const progress = timeLeft / TOTAL_TIME;
+    const offset = circumference * (1 - progress);
      
     return (
       <>
@@ -396,233 +399,280 @@ export default function Quiz() {
         )}
 
         {/* Quiz UI */}
-        {phase === "exam" && (<div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+        {phase === "exam" && (
+          <div className="max-w-[1400px] mx-auto px-6 py-8">
 
-          {/* Top Navigation Bar */}
-          <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    viewBox="0 0 48 48"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
-                      fill="currentColor"
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-bold leading-tight tracking-tight">
-                  Face The Best - Mock Test
-                </h2>
-              </div>
+            <div className="flex gap-8">
 
-              <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary dark:text-blue-400 rounded text-xs font-bold uppercase tracking-wider">
-                Reasoning &amp; Logic
-              </div>
-    
-              <div className="flex items-center gap-6">
-                {/* Countdown Timer */}
-                <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-100 dark:border-red-800">
-                  <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">
-                    timer
-                  </span>
-                  <span className="text-red-600 dark:text-red-400 font-bold text-lg tabular-nums">
-                  {formatTime(timeLeft)}
-                  </span>
-                </div>
-    
-                {/* Progress Counter */}
-                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                    Progress
-                  </span>
-                  <span className="text-slate-900 dark:text-slate-100 font-bold">
-                  {currentIndex + 1} / {totalQuestions}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </header>
-    
-          <main className="flex-1 flex max-w-[1440px] mx-auto w-full overflow-hidden">
-    
-            {/* Left Section */}
-            <div className="flex-1 flex flex-col p-8 overflow-y-auto">
-    
-              {/* Progress Bar */}
-              <div className="mb-8 max-w-3xl">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Total Completion
-                  </span>
-                  <span className="text-sm font-bold text-primary dark:text-blue-400">
-                  {progressPercent}%
-                  </span>
-                </div>
-                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-    
-              {/* Question Area */}
-              <div className="max-w-3xl">
-                <h1 className="text-2xl font-bold mb-6">Question {currentIndex + 1}</h1>
-    
-                {question && (
-                  <QuestionRenderer
-                    question={question}
-                    userAnswer={answers[question.id]}
-                    onSelect={handleSelect}
-                    mode="exam"
-                  />
-                )}
-              </div>
-            </div>
-    
-            {/* Right Sidebar */}
-            <aside className="w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
-              <div className="p-6 overflow-y-auto flex-1">
-                <h3 className="text-sm font-bold uppercase tracking-widest mb-6">
-                  Question Palette
-                </h3>
-    
-                <div className="grid grid-cols-5 gap-3">
-                {questions.map((q, i) => {
-                const status = getStatus(q, i);
-                const base =
-                  "aspect-square rounded-lg font-bold text-sm";
+              {/* ================= LEFT MAIN AREA ================= */}
+              <div className="flex-1 space-y-6">
 
-                  const map = {
-                      answered: "bg-emerald-500 text-white",
-                      marked: "bg-purple-500 text-white",
-                      skipped: "bg-amber-400 text-white",
-                      current: "bg-primary text-white",
-                      notVisited: "bg-slate-100 text-slate-400"
-                  };
-                    
+                {/* Exam Info */}
+                <div className="bg-white dark:bg-slate-900 rounded-xl px-6 py-4 
+                                shadow-[6px_6px_14px_rgba(0,0,0,0.06),_-4px_-4px_10px_rgba(255,255,255,0.6)]
+                                border border-slate-200 dark:border-slate-800">
 
-                return (
-                  <button
-                    key={q.id}
-                    onClick={() => goToQuestion(i)}
-                    className={`${base} ${map[status]}`}
-                  >
-                    {i + 1}
-                  </button>
-                );
-              })}
-                </div>
-    
-                {/* Legend */}
-                <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    Status Legend
+                  <p className="text-xs uppercase tracking-widest text-slate-400 mb-1">
+                    {exam?.type} • {subject?.name} • QUIZ
                   </p>
-                  <div className="flex items-center gap-3">
-                    <div className="size-4 bg-emerald-500 rounded-sm" />
-                    <span className="text-sm">Answered</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="size-4 bg-primary rounded-sm" />
-                    <span className="text-sm">Current Question</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="size-4 bg-amber-400 rounded-sm" />
-                    <span className="text-sm">Skipped</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="size-4 bg-slate-200 dark:bg-slate-700 rounded-sm" />
-                    <span className="text-sm">Not Visited</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="size-4 bg-purple-500 rounded-sm" />
-                    <span className="text-sm">Marked for Review</span>
-                  </div>
 
+                  <h1 className="text-xl font-bold">
+                    Question {currentIndex + 1}
+                  </h1>
                 </div>
-              </div>
-    
-              {/* Profile */}
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-full bg-slate-200 overflow-hidden">
-                    <img
-                      className="w-full h-full object-cover"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDl0FnxN7s0PqzqTV4UITWkVhwiiwSRnAA2HYzODRlqKdvEIyx72_9lXGqmpSLCEg2B94fKmPtNLWTf0BfeDwOMoERK-IMtIAFnNCyyNvtjMMP_sU_sPwA3q3GZBqdDwtKRTNMCw2f32H3JftqAjm3LYU801m5qOV3yDq9tuxAcWkhSKTFgxYww-qrlth71hHvIOX8MIOW-CO8rPPGaFdi7E_e2Cs-YBy1c6n-KkXO6hUbFoWDBOd7jfJhOAEd_qmeu1SVbsInSlwmI"
-                      alt="Candidate profile"
+
+                {/* Question Card */}
+                <div className="bg-white dark:bg-slate-900 rounded-xl p-6
+                                shadow-[8px_8px_18px_rgba(0,0,0,0.08),_-6px_-6px_14px_rgba(255,255,255,0.7)]
+                                border border-slate-200 dark:border-slate-800">
+
+                  {question && (
+                    <QuestionRenderer
+                      question={question}
+                      userAnswer={answers[question.id]}
+                      onSelect={handleSelect}
+                      mode="exam"
                     />
+                  )}
+                </div>
+
+                {/* Bottom Controls */}
+                <div className="flex justify-between items-center">
+
+                  <div className="flex gap-3">
+                    <button
+                      className="px-5 py-2 text-sm font-semibold rounded-xl
+                      bg-gradient-to-b from-white to-slate-200
+                      shadow-[6px_6px_12px_rgba(0,0,0,0.08),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+                      border border-slate-300
+                      transition-all duration-150
+                      active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.15),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]
+                      active:translate-y-[2px]"
+           
+                      onClick={handleMarkForReview}
+                    >
+                      Mark
+                    </button>
+
+                    <button
+                      className="px-5 py-2 text-sm font-semibold rounded-xl
+                      bg-gradient-to-b from-white to-slate-200
+                      shadow-[6px_6px_12px_rgba(0,0,0,0.08),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+                      border border-slate-300
+                      transition-all duration-150
+                      active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.15),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]
+                      active:translate-y-[2px]"
+           
+                      onClick={handleSkip}
+                    >
+                      Skip
+                    </button>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold truncate">Arjun Sharma</p>
-                    <p className="text-xs text-slate-500">ID: EXAM-4429</p>
+
+                  <div className="flex gap-3">
+                    <button
+                      className="px-5 py-2 text-sm font-semibold rounded-xl
+                      bg-gradient-to-b from-white to-slate-200
+                      shadow-[6px_6px_12px_rgba(0,0,0,0.08),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+                      border border-slate-300
+                      transition-all duration-150
+                      active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.15),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]
+                      active:translate-y-[2px]"
+           
+                      onClick={goPrev}
+                    >
+                      Previous
+                    </button>
+
+                    {currentIndex === totalQuestions - 1 ? (
+                      <button
+                      className="px-6 py-2 text-sm font-semibold rounded-xl
+                      bg-gradient-to-b from-primary to-blue-600
+                      text-white
+                      shadow-[6px_6px_12px_rgba(0,0,0,0.2)]
+                      transition-all duration-150
+                      active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)]
+                      active:translate-y-[2px]"
+           
+                        onClick={handleSubmitClick}
+                      >
+                        Submit
+                      </button>
+                    ) : (
+                      <button
+                      className="px-5 py-2 text-sm font-semibold rounded-xl
+                      bg-gradient-to-b from-white to-slate-200
+                      shadow-[6px_6px_12px_rgba(0,0,0,0.08),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+                      border border-slate-300
+                      transition-all duration-150
+                      active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.15),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]
+                      active:translate-y-[2px]"
+           
+                        onClick={goNext}
+                      >
+                        Next
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-            </aside>
-          </main>
-    
-          {/* Footer */}
-          <footer className="h-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl">
-            <div className="max-w-[1440px] mx-auto h-full px-8 flex items-center justify-between">
-              <div className="flex gap-4">
-                <button className={`px-6 h-11 rounded-lg border font-bold flex items-center ${
-                  markedForReview?.has(question?.id)
-                      ? "border-purple-500 text-purple-600"
-                      : ""
-                  }
-                  ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
-                  disabled={!question || isSubmitted}
-                  onClick={handleMarkForReview}>
-                  <span className="material-symbols-outlined mr-2">bookmark</span>
-                  Mark for Review
-                </button>
-                
-                <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={handleSkip}>
-                  Skip Question
-                </button>
-              </div>
-    
-              <div className="flex gap-4">
-                <button className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isSubmitted} onClick={goPrev}>
-                  Previous
-                </button>
 
-                {currentIndex === totalQuestions - 1 ? (
-                  <button
-                    className="px-8 h-11 rounded-lg bg-primary text-white font-bold flex items-center"
-                    onClick={handleSubmitClick}
-                  >
-                    Submit Exam
-                    <span className="material-symbols-outlined ml-2">
-                      check_circle
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    className={`px-6 h-11 rounded-lg border font-bold ${isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
-                    disabled={isSubmitted}
-                    onClick={goNext}
-                  >
-                    Next
-                    <span className="material-symbols-outlined ml-2">
-                      arrow_forward
-                    </span>
-                  </button>
-                )}
-              </div>
+              {/* ================= RIGHT SIDEBAR ================= */}
+              <aside className="w-80 space-y-6">
+
+                {/* Timer & Progress */}
+                <div className="bg-white dark:bg-slate-900 rounded-xl p-4
+                shadow-[6px_6px_14px_rgba(0,0,0,0.06),_-4px_-4px_10px_rgba(255,255,255,0.6)]
+                border border-slate-200 dark:border-slate-800">
+
+                  <div className="flex gap-4">
+                    {/* TIMER */}
+                    <div className="flex-1 bg-[#f4f6f9] dark:bg-slate-900 rounded-2xl p-4
+                      shadow-[6px_6px_14px_rgba(0,0,0,0.06),_-4px_-4px_10px_rgba(255,255,255,0.6)]
+                      border border-slate-200 dark:border-slate-800
+                      text-center">
+
+                      <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+                        {/* SVG Circular Progress */}
+                        <svg
+                          className="absolute"
+                          width="96"
+                          height="96"
+                          viewBox="0 0 120 120"
+                          style={{ transform: "rotate(-90deg)" }}
+                        >
+                          <circle
+                            cx="60"
+                            cy="60"
+                            r="48"
+                            stroke="#e2e8f0"
+                            strokeWidth="6"
+                            fill="transparent"
+                          />
+
+                          <circle
+                            cx="60"
+                            cy="60"
+                            r="48"
+                            stroke="#ef4444"
+                            strokeWidth="6"
+                            fill="transparent"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={offset}
+                            strokeLinecap="round"
+                            style={{ transition: "stroke-dashoffset 1s linear" }}
+                          />
+                        </svg>
+
+                        {/* Inner Skeuomorphic Circle */}
+                        <div className="w-20 h-20 rounded-full 
+                                        bg-gradient-to-br from-white to-slate-200
+                                        shadow-[inset_6px_6px_12px_rgba(0,0,0,0.12),inset_-6px_-6px_12px_rgba(255,255,255,0.9)]
+                                        flex items-center justify-center">
+
+                          <span className="text-sm font-bold text-red-600 tabular-nums">
+                            {formatTime(timeLeft)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-2">
+                        Time
+                      </p> */}
+                    </div>
+
+                    {/* PROGRESS */}
+                    <div className="flex-1 bg-[#f4f6f9] dark:bg-slate-900 rounded-2xl p-4
+                    shadow-[6px_6px_14px_rgba(0,0,0,0.06),_-4px_-4px_10px_rgba(255,255,255,0.6)]
+                    border border-slate-200 dark:border-slate-800
+                    text-center flex items-center justify-center flex-col">
+
+                      <p className="text-base font-bold">
+                        {currentIndex + 1} / {totalQuestions}
+                      </p>
+
+                      <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-1">
+                        Progress
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Question Palette */}
+                <div className="bg-white dark:bg-slate-900 rounded-xl p-5
+                                shadow-[6px_6px_14px_rgba(0,0,0,0.06),_-4px_-4px_10px_rgba(255,255,255,0.6)]
+                                border border-slate-200 dark:border-slate-800">
+
+                  <h3 className="text-sm font-semibold mb-4">
+                    Question Palette
+                  </h3>
+
+                  <div className="grid grid-cols-5 gap-2">
+                    {questions.map((q, i) => {
+                      const status = getStatus(q, i);
+
+                      const map = {
+                        // answered: "bg-emerald-500 text-white",
+                        // marked: "bg-purple-500 text-white",
+                        // skipped: "bg-amber-400 text-white",
+                        answered: "bg-emerald-500 text-white shadow-inner",
+marked: "bg-purple-500 text-white shadow-inner",
+skipped: "bg-amber-400 text-white shadow-inner",
+                        current: "bg-primary text-white",
+                        notVisited: "bg-slate-200 text-slate-500"
+                      };
+
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => goToQuestion(i)}
+                          className={`h-9 rounded-lg text-xs font-semibold
+                            border border-slate-300
+                            transition-all duration-150
+                            ${
+                              status === "notVisited"
+                                ? "bg-gradient-to-b from-white to-slate-200 shadow-[4px_4px_8px_rgba(0,0,0,0.08),_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                                : map[status]
+                            }
+                            active:shadow-[inset_3px_3px_6px_rgba(0,0,0,0.15)]
+                            active:translate-y-[1px]`}                          
+                        >
+                          {i + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="mt-6 pt-4 border-t border-slate-200 text-xs space-y-2">
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-emerald-500 shadow-inner"></div>
+                      <span>Answered</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-purple-500 shadow-inner"></div>
+                      <span>Marked</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-amber-400 shadow-inner"></div>
+                      <span>Skipped</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-slate-300 shadow-inner"></div>
+                      <span>Not Visited</span>
+                    </div>
+
+                  </div>
+                </div>
+              </aside>
+
             </div>
-          </footer>
-        </div>)}
+          </div>
+        )}  
       </>
     );
   }
-  

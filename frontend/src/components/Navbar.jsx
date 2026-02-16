@@ -1,79 +1,122 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { getAuth, signOut } from "firebase/auth";
+import Logo from "../assets/Logo";
 
 export default function Navbar() {
   const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
-        
-        {/* Logo + App Name */}
-        <div 
+    <header
+      className="
+        sticky top-0 z-50
+
+        bg-gradient-to-b from-white to-slate-200
+        dark:from-slate-900 dark:to-slate-950
+
+        border-b border-slate-300 dark:border-slate-800
+
+        shadow-[inset_0px_1px_0px_rgba(255,255,255,0.7),
+                0px_6px_16px_rgba(0,0,0,0.08)]
+      "
+    >
+      <div className="max-w-[1440px] mx-auto px-6 h-14 flex items-center justify-between">
+
+        {/* Logo */}
+        <div
           onClick={() => navigate("/exams")}
-          className="flex items-center gap-3 cursor-pointer"
+          className="
+            flex items-center gap-3 cursor-pointer
+            active:translate-y-[1px]
+          "
         >
-          <div className="size-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-md">
-            {/* Replace with your SVG later */}
-            <span className="font-bold text-lg">F</span>
-          </div>
-          <h1 className="text-lg font-bold tracking-tight">
+          <Logo size={34} />
+
+          <h1 className="text-lg font-bold tracking-tight text-slate-700 dark:text-white">
             Face The Best
           </h1>
         </div>
 
+
         {/* Nav Links */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-semibold">
-          <NavLink
-            to="/exams"
-            className={({ isActive }) =>
-              isActive
-                ? "text-primary"
-                : "text-slate-600 hover:text-primary transition-colors"
-            }
-          >
-            Exams
-          </NavLink>
+        <nav className="hidden md:flex items-center gap-6 text-xs font-semibold">
 
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              isActive
-                ? "text-primary"
-                : "text-slate-600 hover:text-primary transition-colors"
-            }
-          >
-            Dashboard
-          </NavLink>
+          {[
+            { name: "Exams", path: "/exams" },
+            { name: "Dashboard", path: "/dashboard" },
+            { name: "Profile", path: "/profile" },
+            { name: "Social", path: "/social" }
+          ].map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              className={({ isActive }) => `
+                px-3 py-1.5 rounded-lg text-sm
 
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              isActive
-                ? "text-primary"
-                : "text-slate-600 hover:text-primary transition-colors"
-            }
-          >
-            Profile
-          </NavLink>
+                transition-all duration-150
 
-          <NavLink
-            to="/social"
-            className={({ isActive }) =>
-              isActive
-                ? "text-primary"
-                : "text-slate-600 hover:text-primary transition-colors"
-            }
-          >
-            Social
-          </NavLink>
+                ${
+                  isActive
+                    ? `
+                    bg-gradient-to-b from-white to-slate-200
+                    border border-slate-300
+                    shadow-[inset_3px_3px_6px_rgba(0,0,0,0.15)]
+                    text-primary
+                    `
+                    : `
+                    text-slate-600
+                    hover:text-primary
+                    `
+                }
+              `}
+            >
+              {item.name}
+            </NavLink>
+          ))}
+
         </nav>
 
-        {/* Right Side */}
-        <div className="flex items-center gap-4">
-          <button className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold shadow-md hover:opacity-90 transition-all">
-            Log Out
-          </button>
-        </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="
+            flex items-center gap-2
+
+            px-4 py-1.5
+            text-xs font-semibold
+            rounded-xl
+
+            bg-gradient-to-b from-primary to-blue-600
+            text-white
+
+            border border-blue-700
+
+            shadow-[6px_6px_12px_rgba(0,0,0,0.2)]
+
+            transition-all duration-150
+
+            active:translate-y-[2px]
+            active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.35)]
+          "
+        >
+          <span className="material-symbols-outlined text-sm">
+            logout
+          </span>
+
+          Logout
+        </button>
+
       </div>
     </header>
   );

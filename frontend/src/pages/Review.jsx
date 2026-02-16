@@ -136,120 +136,127 @@ export default function Review() {
 
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-[#0f0f1a] dark:text-white">
-        <main className="max-w-[1280px] mx-auto px-4 md:px-10 py-6">
-          <div className="flex flex-col lg:flex-row gap-6">
+        <main className="max-w-[1120px] mx-auto px-6 py-5">
+         <div className="flex flex-col lg:flex-row gap-5 items-start">
   
             {/* Left Side */}
             <div className="flex-1 flex flex-col gap-6">
   
               {/* Page Heading & Status */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-[#d2d2e5] dark:border-white/10">
-                <div className="flex flex-wrap justify-between items-start gap-4">
-                  <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl md:text-2xl font-bold tracking-tight">
-                      Question {currentIndex + 1} of {totalQuestions}
+              <div className="
+                rounded-2xl px-5 py-4
+                bg-gradient-to-b from-white to-slate-200
+                border border-slate-300
+                shadow-[8px_8px_16px_rgba(0,0,0,0.06),_-6px_-6px_12px_rgba(255,255,255,0.9)]
+              ">
+                <div className="flex justify-between items-start">
+
+                  <div>
+                    <h1 className="text-xl font-bold">
+                      Question {currentIndex + 1}
+                      <span className="text-slate-400 text-sm font-medium">
+                        {" "}of {totalQuestions}
+                      </span>
                     </h1>
 
-                    <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
-                      Exam:{" "}
-                      <span className="font-medium text-[#0f0f1a] dark:text-white">
-                        {attempt.examType || "—"}
-                      </span>
-                    </p>
-
-                    <p className="text-[#555591] dark:text-gray-400 text-sm font-normal">
-                      Subject:{" "}
-                      <span className="font-medium text-[#0f0f1a] dark:text-white">
-                        {attempt.subjectName || "—"}
-                      </span>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {attempt.examType} • {attempt.subjectName}
                     </p>
                   </div>
-  
-                  <div className="flex flex-col items-end gap-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-bold border flex items-center gap-1 ${
+
+                  {/* Status Badge */}
+                  <div
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1
+                    border
+                    shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)]
+                    ${
                       isSkipped
-                        ? "bg-gray-100 text-gray-500 border-gray-300"
+                        ? "bg-gradient-to-b from-white to-slate-200 border-slate-300 text-slate-500"
                         : isCorrect
-                        ? "bg-success-bg text-success-border border-success-border"
-                        : "bg-error-bg text-error-border border-error-border"
+                        ? "bg-gradient-to-b from-emerald-100 to-emerald-200 border-emerald-400 text-emerald-700"
+                        : "bg-gradient-to-b from-red-100 to-red-200 border-red-400 text-red-700"
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[18px]">
+                    <span className="material-symbols-outlined text-sm">
                       {isSkipped ? "remove" : isCorrect ? "check" : "close"}
                     </span>
+                    {isSkipped ? "Skipped" : isCorrect ? "Correct" : "Incorrect"}
+                  </div>
+                </div>
+              </div>
 
-                    {isSkipped
-                      ? "Skipped"
-                      : isCorrect
-                      ? "Correct"
-                      : "Incorrect"
-                    }
-                  </span>
+              <div className="flex gap-4">
+                {[{
+                  icon: "timer",
+                  label: "Your Time",
+                  value: response ? `${Math.round(response.timeTakenMs/1000)}s` : "—"
+                },{
+                  icon: "groups",
+                  label: "Avg Time",
+                  value: `${Math.round(attempt.result.avgTimeMs/1000)}s`
+                },{
+                  icon: "psychology",
+                  label: "Decision",
+                  value: response?.markedForReview ? "Doubtful" : "Confident"
+                }].map((item, i) => (
+                  <div key={i}
+                    className="
+                    flex-1 rounded-xl px-4 py-4
+                    bg-gradient-to-b from-white to-slate-200
+                    border border-slate-300
+                    shadow-[6px_6px_12px_rgba(0,0,0,0.06),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+                    text-sm
+                  ">
+                    <div className="flex items-center gap-2 text-slate-500 text-xs uppercase tracking-wide">
+                      <span className="material-symbols-outlined text-base">
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </div>
+                    <p className="text-lg font-bold mt-1">{item.value}</p>
                   </div>
-                </div>
+                ))}
               </div>
-  
-              {/* Stats Bar */}
-              <div className="flex flex-wrap gap-4">
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-900 border border-[#d2d2e5] dark:border-white/10">
-                  <div className="flex items-center gap-2 text-[#555591] dark:text-gray-400">
-                    <span className="material-symbols-outlined text-[20px]">
-                      timer
-                    </span>
-                    <p className="text-sm font-medium">Your Time</p>
-                  </div>
-                  <p className="text-xl font-bold">
-                    {response
-                    ? `${Math.round(response.timeTakenMs / 1000)}s`
-                    : "—"}
-                  </p>
-                </div>
-  
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-900 border border-[#d2d2e5] dark:border-white/10">
-                  <div className="flex items-center gap-2 text-[#555591] dark:text-gray-400">
-                    <span className="material-symbols-outlined text-[20px]">
-                      groups
-                    </span>
-                    <p className="text-sm font-medium">Avg. Time</p>
-                  </div>
-                  <p className="text-xl font-bold">
-                    {Math.round(attempt.result.avgTimeMs / 1000)}s
-                  </p>
-                </div>
-  
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-900 border">
-                  <div className="flex items-center gap-2 text-[#555591]">
-                    <span className="material-symbols-outlined">psychology</span>
-                    <p className="text-sm font-medium">Decision</p>
-                  </div>
-                  <p className="text-xl font-bold">
-                    {response?.markedForReview ? "Doubtful" : "Confident"}
-                  </p>
-                </div>
-              </div>
+
   
               {/* Question Card */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d2d2e5] dark:border-white/10 overflow-hidden">
-                <div className="p-8">
-                  <QuestionRenderer
-                    question={question}
-                    userAnswer={userAnswer}
-                    mode="review"
-                  /> 
-                </div>
+              <div className="
+                rounded-2xl px-6 py-6
+                bg-gradient-to-b from-white to-slate-200
+                border border-slate-300
+                shadow-[10px_10px_20px_rgba(0,0,0,0.08),_-8px_-8px_16px_rgba(255,255,255,0.9)]
+              ">
+                <QuestionRenderer
+                  question={question}
+                  userAnswer={userAnswer}
+                  mode="review"
+                />
               </div>
+
   
             {/* Bottom Navigation (Sticky behavior simulated) */}
             <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-[#d2d2e5] dark:border-white/10 flex justify-between items-center">
-              <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center gap-2 px-6 py-2 rounded-lg bg-[#e9e9f2] dark:bg-gray-700 text-[#0f0f1a] dark:text-white font-bold hover:bg-[#d2d2e5] transition-colors">
-                <span className="material-symbols-outlined">
+              <button
+                onClick={goPrev}
+                disabled={currentIndex === 0}
+                className="
+                flex items-center gap-2 px-5 py-2 text-sm font-semibold
+                rounded-xl
+                bg-gradient-to-b from-white to-slate-200
+                border border-slate-300
+                shadow-[6px_6px_12px_rgba(0,0,0,0.08),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+                transition-all duration-150
+                active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.15)]
+                active:translate-y-[2px]
+                disabled:opacity-40
+              ">
+                  <span className="material-symbols-outlined">
                   arrow_back_ios
                 </span>
                 Previous
               </button>
 
-              <div className="hidden sm:flex gap-4">
+              {/* <div className="hidden sm:flex gap-4">
                 <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-primary font-bold hover:bg-primary/10">
                   <span className="material-symbols-outlined">
                     bookmark_add
@@ -262,9 +269,23 @@ export default function Review() {
                   </span>
                   Report
                 </button>
-              </div>
+              </div> */}
 
-              <button onClick={goNext} disabled={currentIndex === totalQuestions - 1} className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-white font-bold hover:bg-opacity-90 transition-colors">
+              <button
+                onClick={goNext} 
+                disabled={currentIndex === totalQuestions - 1}
+                className="
+                flex items-center gap-2 px-5 py-2 text-sm font-semibold
+                rounded-xl
+                bg-gradient-to-b from-primary to-blue-600
+                text-white
+                shadow-[6px_6px_12px_rgba(0,0,0,0.2)]
+                border border-slate-300
+                transition-all duration-150
+                active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.15)]
+                active:translate-y-[2px]
+                disabled:opacity-40
+              ">
                 Next
                 <span className="material-symbols-outlined">
                   arrow_forward_ios
@@ -274,85 +295,205 @@ export default function Review() {
 
           </div>
 
-          {/* Right Sidebar: Question Palette */}
-          <aside className="w-full lg:w-80 shrink-0">
-            <div className="sticky top-24 bg-white dark:bg-gray-900 rounded-xl border border-[#d2d2e5] dark:border-white/10 p-5 flex flex-col gap-6">
+          {/* Right Sidebar */}
+          <aside className="w-full lg:w-80 shrink-0 sticky top-20 self-start">
 
-              <div>
-                <h4 className="text-base font-bold mb-1">
+            {/* Skeuomorphic Control Panel */}
+            <div
+              className="
+                rounded-2xl px-5 py-5
+                bg-gradient-to-b from-white to-slate-200
+                border border-slate-300
+                shadow-[10px_10px_20px_rgba(0,0,0,0.08),_-8px_-8px_16px_rgba(255,255,255,0.95)]
+                flex flex-col gap-6
+              "
+            >
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-slate-600 tracking-wide uppercase">
                   Question Palette
                 </h4>
-                <p className="text-[#555591] dark:text-gray-400 text-sm">
-                  Quick Jump
-                </p>
+
+                <span className="text-xs font-semibold text-slate-400">
+                  {currentIndex + 1} / {questions.length}
+                </span>
               </div>
 
+              {/* Palette Grid */}
               <div className="grid grid-cols-5 gap-2">
+
                 {questions.map((q, i) => {
                   const status = getQuestionStatus(q);
-
-                  const colorMap = {
-                    correct: "bg-success-border/20 text-success-border",
-                    incorrect: "bg-error-border/20 text-error-border",
-                    unattempted: "bg-gray-200 text-gray-500"
-                  };
 
                   return (
                     <div
                       key={q.id}
                       onClick={() => jumpToQuestion(i)}
-                      className={`size-10 flex items-center justify-center rounded font-bold text-sm cursor-pointer transition-colors ${
-                        colorMap[status]
-                      } ${i === currentIndex ? "ring-2 ring-primary" : ""}`}
+                      className={`
+                        w-9 h-9
+                        text-xs font-bold
+                        flex items-center justify-center
+                        rounded-lg
+                        border
+                        cursor-pointer
+                        transition-all duration-150
+
+                        ${
+                          status === "correct"
+                            ? `
+                            bg-gradient-to-b from-emerald-200 to-emerald-300
+                            border-emerald-500
+                            shadow-[inset_3px_3px_6px_rgba(0,0,0,0.2)]
+                            text-emerald-800
+                            `
+                            : status === "incorrect"
+                            ? `
+                            bg-gradient-to-b from-red-200 to-red-300
+                            border-red-500
+                            shadow-[inset_3px_3px_6px_rgba(0,0,0,0.2)]
+                            text-red-800
+                            `
+                            : `
+                            bg-gradient-to-b from-white to-slate-200
+                            border-slate-300
+                            shadow-[4px_4px_8px_rgba(0,0,0,0.08),_-3px_-3px_6px_rgba(255,255,255,0.95)]
+                            text-slate-600
+                            `
+                        }
+
+                        ${
+                          i === currentIndex
+                            ? `
+                            ring-2 ring-primary
+                            shadow-[inset_2px_2px_4px_rgba(0,0,0,0.25)]
+                            `
+                            : ""
+                        }
+
+                        active:translate-y-[1px]
+                        active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.25)]
+                      `}
                     >
                       {i + 1}
                     </div>
                   );
                 })}
+
               </div>
 
-              <div className="border-t border-[#d2d2e5] dark:border-white/10 pt-4 space-y-3">
+
+              {/* Legend */}
+              <div className="
+                pt-4
+                border-t border-slate-300
+                flex flex-col gap-2 text-xs font-medium text-slate-600
+              ">
+
                 <div className="flex items-center gap-2">
-                  <div className="size-3 rounded-full bg-success-border"></div>
-                  <span className="text-xs font-medium">
-                    Correct
-                  </span>
+
+                  <div className="
+                    w-3 h-3 rounded-full
+                    bg-gradient-to-b from-emerald-300 to-emerald-400
+                    border border-emerald-500
+                    shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]
+                  "></div>
+
+                  Correct
                 </div>
+
                 <div className="flex items-center gap-2">
-                  <div className="size-3 rounded-full bg-error-border"></div>
-                  <span className="text-xs font-medium">
-                    Incorrect
-                  </span>
+
+                  <div className="
+                    w-3 h-3 rounded-full
+                    bg-gradient-to-b from-red-300 to-red-400
+                    border border-red-500
+                    shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]
+                  "></div>
+
+                  Incorrect
                 </div>
+
                 <div className="flex items-center gap-2">
-                  <div className="size-3 rounded-full bg-gray-300"></div>
-                  <span className="text-xs font-medium">
-                    Unattempted
-                  </span>
+
+                  <div className="
+                    w-3 h-3 rounded-full
+                    bg-gradient-to-b from-white to-slate-200
+                    border border-slate-400
+                    shadow-[inset_2px_2px_4px_rgba(0,0,0,0.15)]
+                  "></div>
+
+                  Unattempted
                 </div>
+
               </div>
 
-              <button 
-                onClick={() => navigate(-1)} 
-                className="flex items-center gap-2 px-6 py-2 rounded-lg border-2 border-primary text-primary font-bold hover:bg-primary/10"
-              >
-                <span className="material-symbols-outlined">
-                  arrow_back
-                </span>
-                Back to Result Summary
-              </button>
 
-              <button
-                onClick={() => navigate("/exams")}
-                className="flex items-center gap-2 px-6 py-2 rounded-lg border-2 border-primary bg-primary text-white font-bold hover:bg-primary/10"
-              >
-                <span className="material-symbols-outlined">
-                  restart_alt
-                </span>
-                Take Another Quiz
-              </button>
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 pt-2">
+
+                {/* Back Button */}
+                <button
+                  onClick={() => navigate(-1)}
+                  className="
+                  flex items-center justify-center gap-2
+                  px-4 py-2.5
+                  text-sm font-semibold
+                  rounded-xl
+
+                  bg-gradient-to-b from-white to-slate-200
+                  border border-slate-300
+
+                  shadow-[6px_6px_12px_rgba(0,0,0,0.08),_-4px_-4px_8px_rgba(255,255,255,0.95)]
+
+                  transition-all duration-150
+
+                  active:translate-y-[2px]
+                  active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]
+                "
+                >
+                  <span className="material-symbols-outlined text-base">
+                    arrow_back
+                  </span>
+
+                  Back to Results
+                </button>
+
+
+                {/* Primary Button */}
+                <button
+                  onClick={() => navigate("/exams")}
+                  className="
+                  flex items-center justify-center gap-2
+                  px-4 py-2.5
+                  text-sm font-semibold
+                  rounded-xl
+
+                  bg-gradient-to-b from-primary to-blue-600
+                  border border-blue-700
+                  text-white
+
+                  shadow-[6px_6px_14px_rgba(0,0,0,0.25)]
+
+                  transition-all duration-150
+
+                  active:translate-y-[2px]
+                  active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.35)]
+                "
+                >
+                  <span className="material-symbols-outlined text-base">
+                    restart_alt
+                  </span>
+
+                  Take Another Quiz
+                </button>
+
+              </div>
+
             </div>
+
           </aside>
+
         </div>
       </main>
     </div>

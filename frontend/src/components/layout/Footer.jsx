@@ -2,7 +2,6 @@ export default function Footer() {
   return (
     <footer
       className="
-        mt-14
 
         bg-gradient-to-b from-white to-slate-200
         dark:from-slate-900 dark:to-slate-950

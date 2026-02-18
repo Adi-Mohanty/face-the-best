@@ -3,9 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { fetchQuestions } from "../services/questions";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
 import { auth } from "../services/firebase";
-import InstructionsModal from "../components/Instructions";
+import InstructionsModal from "../components/quiz/Instructions";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../services/firebase";
+import MechanicalStopwatch from "../components/quiz/MechanicalStopwatch";
 
 const STORAGE_KEY = "exam-progress";
 const TOTAL_TIME = 600;
@@ -28,17 +29,17 @@ export default function Quiz() {
     const [answers, setAnswers] = useState({});
     const [skipped, setSkipped] = useState(new Set());
     const [markedForReview, setMarkedForReview] = useState(new Set());
-    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+    const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [questions, setQuestions] = useState([]);
     const [questionStartTime, setQuestionStartTime] = useState(Date.now());
     const [responses, setResponses] = useState({});
     const [showSubmitWarning, setShowSubmitWarning] = useState(false);
+    const [quizStartTime, setQuizStartTime] = useState(null);
 
     const question = questions[currentIndex];
     // console.log("question :", question);
     const totalQuestions = questions.length;
-    const [quizStartTime] = useState(Date.now());
     const submitAttempt = httpsCallable(functions, "submitAttempt");
 
     useEffect(() => {
@@ -70,17 +71,22 @@ export default function Quiz() {
   
     /* ---------------- TIMER ---------------- */
     useEffect(() => {
-      if (timeLeft <= 0) {
-        handleSubmit();
-        return;
-      }
-  
+      if (phase !== "exam") return;
+    
       const interval = setInterval(() => {
-        setTimeLeft(t => t - 1);
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            handleSubmit();
+            return 0;
+          }
+    
+          return prev - 1;
+        });
       }, 1000);
-  
+    
       return () => clearInterval(interval);
-    }, [timeLeft]);
+    }, [phase]);    
 
     useEffect(() => {
         // Do not persist after submission
@@ -278,7 +284,7 @@ export default function Quiz() {
         subject,
         questions: questions.map(q => q.id),
         responses: buildFinalResponses(),
-        startedAt: quizStartTime,
+        startedAt: quizStartTime ?? Date.now(),
         finishedAt: Date.now()
       };
     
@@ -353,8 +359,12 @@ export default function Quiz() {
         {/* Instructions Modal */}
         {phase === "instructions" && (
           <InstructionsModal
-            onConfirm={() => setPhase("exam")}
-          />
+            onConfirm={() => {
+              setQuizStartTime(Date.now());
+              setQuestionStartTime(Date.now());
+              setPhase("exam");
+            }}
+          />        
         )}
 
         {showSubmitWarning && (
@@ -527,59 +537,10 @@ export default function Quiz() {
 
                   <div className="flex gap-4">
                     {/* TIMER */}
-                    <div className="flex-1 bg-[#f4f6f9] dark:bg-slate-900 rounded-2xl p-4
-                      shadow-[6px_6px_14px_rgba(0,0,0,0.06),_-4px_-4px_10px_rgba(255,255,255,0.6)]
-                      border border-slate-200 dark:border-slate-800
-                      text-center">
-
-                      <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
-                        {/* SVG Circular Progress */}
-                        <svg
-                          className="absolute"
-                          width="96"
-                          height="96"
-                          viewBox="0 0 120 120"
-                          style={{ transform: "rotate(-90deg)" }}
-                        >
-                          <circle
-                            cx="60"
-                            cy="60"
-                            r="48"
-                            stroke="#e2e8f0"
-                            strokeWidth="6"
-                            fill="transparent"
-                          />
-
-                          <circle
-                            cx="60"
-                            cy="60"
-                            r="48"
-                            stroke="#ef4444"
-                            strokeWidth="6"
-                            fill="transparent"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={offset}
-                            strokeLinecap="round"
-                            style={{ transition: "stroke-dashoffset 1s linear" }}
-                          />
-                        </svg>
-
-                        {/* Inner Skeuomorphic Circle */}
-                        <div className="w-20 h-20 rounded-full 
-                                        bg-gradient-to-br from-white to-slate-200
-                                        shadow-[inset_6px_6px_12px_rgba(0,0,0,0.12),inset_-6px_-6px_12px_rgba(255,255,255,0.9)]
-                                        flex items-center justify-center">
-
-                          <span className="text-sm font-bold text-red-600 tabular-nums">
-                            {formatTime(timeLeft)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-2">
-                        Time
-                      </p> */}
-                    </div>
+                    <MechanicalStopwatch
+                      timeLeft={timeLeft}
+                      totalTime={TOTAL_TIME}
+                    />
 
                     {/* PROGRESS */}
                     <div className="flex-1 bg-[#f4f6f9] dark:bg-slate-900 rounded-2xl p-4
@@ -612,12 +573,9 @@ export default function Quiz() {
                       const status = getStatus(q, i);
 
                       const map = {
-                        // answered: "bg-emerald-500 text-white",
-                        // marked: "bg-purple-500 text-white",
-                        // skipped: "bg-amber-400 text-white",
                         answered: "bg-emerald-500 text-white shadow-inner",
-marked: "bg-purple-500 text-white shadow-inner",
-skipped: "bg-amber-400 text-white shadow-inner",
+                        marked: "bg-purple-500 text-white shadow-inner",
+                        skipped: "bg-amber-400 text-white shadow-inner",
                         current: "bg-primary text-white",
                         notVisited: "bg-slate-200 text-slate-500"
                       };

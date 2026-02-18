@@ -6,50 +6,66 @@ import SubjectSelection from "./pages/SubjectSelection";
 import Quiz from "./pages/Quiz";
 import Result from "./pages/Result";
 import Review from "./pages/Review";
-import Admin from "./pages/Admin";
 
-import DevNavBar from "./components/DevNavBar";
-import ProtectedRoute from "./components/ProtectedRoute";
 import AdminExams from "./pages/AdminExams";
 import AdminSubjects from "./pages/AdminSubjects";
-import AdminRoute from "./components/AdminRoute";
+
 import Unauthorized from "./pages/Unauthorized";
 import Welcome from "./pages/Welcome";
-import AppLayout from "./components/AppLayout";
+
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
+
+import AppLayout from "./components/layout/AppLayout";
+import PublicLayout from "./components/layout/PublicLayout";
+import AdminQuestions from "./pages/AdminQuestons";
+
 
 export default function App() {
+
   return (
-    <>
-      <Routes>
 
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/login" />} />
+    <Routes>
 
-        {/* Public */}
+      {/* PUBLIC */}
+      <Route element={<PublicLayout />}>
+
+        <Route path="/" element={<Welcome />} />
+
         <Route path="/login" element={<Login />} />
 
-        {/* 🔥 USER LAYOUT WRAPPER */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/welcome" element={<Welcome />} />
-          <Route path="/exams" element={<ExamSelection />} />
-          <Route path="/subjects" element={<SubjectSelection />} />
-          <Route path="/quiz" element={<Quiz />} />
-          <Route path="/result/:attemptId" element={<Result />} />
-          <Route path="/review/:attemptId" element={<Review />} />
-        </Route>
+      </Route>
 
-        {/* 🔥 ADMIN (NO APP LAYOUT) */}
+
+
+      {/* APP LAYOUT (Navbar included here) */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+
+        {/* USER ROUTES */}
+        <Route path="/exams" element={<ExamSelection />} />
+
+        <Route path="/subjects" element={<SubjectSelection />} />
+
+        <Route path="/quiz" element={<Quiz />} />
+
+        <Route path="/result/:attemptId" element={<Result />} />
+
+        <Route path="/review/:attemptId" element={<Review />} />
+
+
+
+        {/* ADMIN ROUTES INSIDE SAME LAYOUT */}
         <Route
-          path="/admin"
+          path="/admin/questions"
           element={
             <AdminRoute>
-              <Admin />
+              <AdminQuestions />
             </AdminRoute>
           }
         />
@@ -72,13 +88,19 @@ export default function App() {
           }
         />
 
-        <Route path="/unauthorized" element={<Unauthorized />} />
-
-      </Routes>
+      </Route>
 
 
-      {/* 🔧 Temporary Dev Navigation */}
-      {/* <DevNavBar /> */}
-    </>
+
+      {/* UNAUTHORIZED */}
+      <Route path="/unauthorized" element={<Unauthorized />} />
+
+
+      {/* FALLBACK */}
+      <Route path="*" element={<Navigate to="/" />} />
+
+    </Routes>
+
   );
+
 }

@@ -43,102 +43,305 @@ export default function SubjectSelection() {
 
   if (!exam) return null;
     
-    return (
-      <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#0f0f1a] dark:text-white transition-colors duration-200">
-        <main className="max-w-[1200px] mx-auto px-6 py-8">
-          {/* Page Heading */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
-            <div className="max-w-2xl">
-              <h2 className="text-[#0f0f1a] dark:text-white text-3xl md:text-3xl font-black leading-tight tracking-tight mb-3">
-                {exam.type} — Choose Your Subject
-              </h2>
-              <p className="text-[#555591] dark:text-gray-400 text-lg">
-                Select a subject to begin your personalized practice session for the current exam tier. Questions will be from selected subject only.
-              </p>
-            </div>
-
-            {/* Progress Indicator */}
-            <div className="flex items-center gap-3 px-4 py-2 rounded-xl
-                            bg-primary/5 dark:bg-blue-900/20
-                            border border-primary/20">
-              <span className="material-symbols-outlined text-primary">
-                insights
-              </span>
-              <p className="text-sm font-semibold text-[#0f0f1a] dark:text-white">
-                You have practiced{" "}
-                <span className="text-primary font-black">
-                  {practicedCount}
-                </span>{" "}
-                / {totalSubjects} subjects
-              </p>
-            </div>
+  return (
+    <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#0f0f1a] dark:text-white">
+  
+      <main className="max-w-[1100px] mx-auto px-6 py-6">
+  
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 mb-8">
+  
+          <div className="max-w-xl">
+  
+            <h2 className="
+              text-2xl md:text-3xl
+              font-bold
+              tracking-tight
+            ">
+              {exam.type}
+            </h2>
+  
+            <p className="
+              text-xs
+              text-[#6a6a9a]
+              dark:text-gray-400
+              mt-1
+            ">
+              Choose a subject to begin practice
+            </p>
+  
           </div>
   
-          {/* Subject Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-            {subjects.map(subject => (
-              <div
-                key={subject.id}
-                onClick={() => setActiveSubject(subject)}
-                className="cursor-pointer group bg-white dark:bg-gray-800
-                          rounded-xl overflow-hidden border
-                          hover:border-primary hover:shadow-xl
-                          transition-all active:scale-[0.98]"
-              >
-                {/* DiceBear Image */}
+  
+          {/* Skeuomorphic Progress Indicator */}
+          <div className="
+            px-4 py-2 rounded-lg
+  
+            bg-gradient-to-b from-white to-slate-200
+            dark:from-[#1f2235] dark:to-[#161827]
+  
+            border border-slate-300 dark:border-white/10
+  
+            shadow-[6px_6px_12px_rgba(0,0,0,0.15),_-4px_-4px_8px_rgba(255,255,255,0.9)]
+            dark:shadow-[6px_6px_12px_rgba(0,0,0,0.6),_-4px_-4px_8px_rgba(255,255,255,0.05)]
+  
+            flex items-center gap-2
+          ">
+  
+            <span className="material-symbols-outlined text-primary text-[18px]">
+              insights
+            </span>
+  
+            <p className="text-xs font-semibold">
+              <span className="text-primary font-bold">
+                {practicedCount}
+              </span>{" "}
+              / {totalSubjects} practiced
+            </p>
+  
+          </div>
+  
+        </div>
+  
+  
+  
+        {/* Subject Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+  
+          {subjects.map(subject => (
+            <div
+              key={subject.id}
+              onClick={() => setActiveSubject(subject)}
+              className="subject-card cursor-pointer rounded-xl overflow-hidden transition-all duration-150"
+            >
+  
+  
+              {/* Image */}
+              <div className="subject-image-wrapper">
+  
                 <img
                   src={`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(subject.name)}`}
                   alt={subject.name}
-                  className="h-44 w-full object-cover"
+                  className="subject-image"
                 />
-
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="bg-blue-50 dark:bg-blue-900/30 p-1 rounded-lg text-primary dark:text-blue-300">
-                      <span className="material-symbols-outlined">{subject.icon}</span>
-                    </div>
-                    <h3 className="font-bold text-lg">{subject.name}</h3>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="flex items-center gap-2 text-[#555591] dark:text-gray-400 text-sm">
-                      <span className="material-symbols-outlined text-base">
-                        format_list_numbered
-                      </span>
-                      10 Questions
-                    </p>
-                    <p className="flex items-center gap-2 text-[#555591] dark:text-gray-400 text-sm">
-                      <span className="material-symbols-outlined text-base">
-                        timer
-                      </span>
-                      10 Mins
-                    </p>
-                    <p className="text-[#555591] dark:text-gray-400 text-sm mt-4 border-t border-gray-100 dark:border-gray-700 pt-4 italic">
-                      {subject.description}
-                    </p>
-                  </div>
-                </div>
+  
               </div>
-            ))}
-          </div>
-        </main>
-
-        {/* Action Modal */}
-        {activeSubject && (
-          <SubjectActionModal
-            exam={exam}
-            subject={activeSubject}
-            onClose={() => setActiveSubject(null)}
-            onStartQuiz={() => {
-              navigate("/quiz", {
-                state: {
-                  exam,
-                  subject: activeSubject
-                }
-              });
-            }}            
-          />
-        )}
-      </div>
-    );
+  
+  
+  
+              {/* Content */}
+              <div className="p-4">
+  
+                {/* Title */}
+                <div className="flex items-center gap-2 mb-2">
+  
+                  <div className="subject-icon-shell">
+  
+                    <span className="material-symbols-outlined text-[18px] text-primary">
+                      {subject.icon}
+                    </span>
+  
+                  </div>
+  
+                  <h3 className="font-semibold text-sm">
+                    {subject.name}
+                  </h3>
+  
+                </div>
+  
+  
+                {/* Meta */}
+                <div className="space-y-1">
+  
+                  <p className="subject-meta">
+                    <span className="material-symbols-outlined text-[14px]">
+                      format_list_numbered
+                    </span>
+                    10 Questions
+                  </p>
+  
+                  <p className="subject-meta">
+                    <span className="material-symbols-outlined text-[14px]">
+                      timer
+                    </span>
+                    10 Minutes
+                  </p>
+  
+                </div>
+  
+  
+                {/* Description */}
+                <p className="subject-description">
+                  {subject.description}
+                </p>
+  
+              </div>
+  
+            </div>
+          ))}
+  
+        </div>
+  
+      </main>
+  
+  
+      {/* Modal */}
+      {activeSubject && (
+        <SubjectActionModal
+          exam={exam}
+          subject={activeSubject}
+          onClose={() => setActiveSubject(null)}
+          onStartQuiz={() => {
+            navigate("/quiz", {
+              state: { exam, subject: activeSubject }
+            });
+          }}
+        />
+      )}
+  
+  
+  
+      {/* Skeuomorphic CSS */}
+      <style jsx>{`
+  
+        /* Main card shell */
+        .subject-card {
+  
+          background: linear-gradient(145deg, #ffffff, #e6e9ef);
+  
+          border: 1px solid rgba(0,0,0,0.06);
+  
+          box-shadow:
+            8px 8px 16px rgba(0,0,0,0.15),
+            -6px -6px 12px rgba(255,255,255,0.9),
+            inset 0 1px 0 rgba(255,255,255,0.8);
+        }
+  
+  
+        .dark .subject-card {
+  
+          background: linear-gradient(145deg, #1f2235, #161827);
+  
+          border: 1px solid rgba(255,255,255,0.05);
+  
+          box-shadow:
+            8px 8px 16px rgba(0,0,0,0.6),
+            -4px -4px 8px rgba(255,255,255,0.05),
+            inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+  
+  
+  
+        /* Hover */
+        .subject-card:hover {
+  
+          transform: translateY(-3px);
+  
+          box-shadow:
+            12px 12px 20px rgba(0,0,0,0.18),
+            -8px -8px 14px rgba(255,255,255,0.95);
+        }
+  
+  
+  
+        /* Pressed */
+        .subject-card:active {
+  
+          transform: scale(0.97);
+  
+          box-shadow:
+            inset 4px 4px 8px rgba(0,0,0,0.2),
+            inset -4px -4px 8px rgba(255,255,255,0.8);
+        }
+  
+  
+  
+        /* Image shell */
+        .subject-image-wrapper {
+  
+          padding: 10px;
+  
+          background: linear-gradient(145deg, #f8fafc, #dde3ea);
+  
+          border-bottom: 1px solid rgba(0,0,0,0.05);
+  
+          box-shadow:
+            inset 2px 2px 6px rgba(0,0,0,0.1),
+            inset -2px -2px 6px rgba(255,255,255,0.8);
+        }
+  
+  
+        .dark .subject-image-wrapper {
+  
+          background: linear-gradient(145deg, #161827, #1f2235);
+        }
+  
+  
+  
+        .subject-image {
+  
+          height: 90px;
+          width: 100%;
+  
+          object-fit: cover;
+        }
+  
+  
+  
+        /* Icon shell */
+        .subject-icon-shell {
+  
+          width: 28px;
+          height: 28px;
+  
+          display: flex;
+          align-items: center;
+          justify-content: center;
+  
+          border-radius: 6px;
+  
+          background: linear-gradient(145deg, #ffffff, #e6e9ef);
+  
+          box-shadow:
+            3px 3px 6px rgba(0,0,0,0.2),
+            -2px -2px 4px rgba(255,255,255,0.9);
+        }
+  
+  
+  
+        /* Meta text */
+        .subject-meta {
+  
+          font-size: 11px;
+  
+          color: #6a6a9a;
+  
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+  
+  
+  
+        /* Description */
+        .subject-description {
+  
+          font-size: 11px;
+  
+          margin-top: 8px;
+  
+          padding-top: 8px;
+  
+          border-top: 1px solid rgba(0,0,0,0.06);
+  
+          color: #6a6a9a;
+  
+          font-style: italic;
+        }
+  
+      `}</style>
+  
+    </div>
+  );
+  
 }

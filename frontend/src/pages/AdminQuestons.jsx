@@ -1,14 +1,13 @@
-import { signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../services/firebase";
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import GenerationJobModal from "../components/GenerationJobModal";
+import ApprovedQuestionsModal from "../components/ApprovedQuestionsModal";
 
 function Field({ label, children }) {
   return (
@@ -52,6 +51,7 @@ export default function AdminQuestions() {
 
   const [avgApprovalRate, setAvgApprovalRate] = useState(0);
   const [topSubjects, setTopSubjects] = useState([]);
+  const [reviewJobId, setReviewJobId] = useState(null);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(user => {
@@ -61,7 +61,14 @@ export default function AdminQuestions() {
     return unsub;
   }, []); 
 
+  const difficultyLimits = {
+    Easy: 60,
+    Medium: 30,
+    Hard: 10
+  };  
+
   const createJob = httpsCallable(functions, "createGenerationJob");
+  const retryJob = httpsCallable(functions, "retryGenerationJob");
   const filteredSubjects = exam? subjects.filter(sub => exam.subjects?.includes(sub.id)): [];
 
   useEffect(() => {
@@ -83,7 +90,7 @@ export default function AdminQuestions() {
       doc(db, "generationJobs", activeJobId),
       (snap) => {
         const data = snap.data();
-        setJob(data);
+        setJob({ id: snap.id, ...data });
 
         if (data?.status === "COMPLETED") {
           setExam(null);
@@ -136,8 +143,8 @@ export default function AdminQuestions() {
         const subjectMap = {};
   
         jobs.forEach(j => {
-          if (!j.subject || !j.generated) return;
-          subjectMap[j.subject] = (subjectMap[j.subject] || 0) + j.generated;
+          if (!j.subject || !j.approved) return;
+          subjectMap[j.subject] = (subjectMap[j.subject] || 0) + j.approved;
         });
   
         const top = Object.entries(subjectMap)
@@ -154,7 +161,11 @@ export default function AdminQuestions() {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      collection(db, "questions"),
+      query(
+        collection(db, "questions"),
+        where("pipelineVersion", "==", 2),
+        where("isActive", "==", true)
+      ),
       (snap) => {
         setStats(prev => ({
           ...prev,
@@ -167,6 +178,11 @@ export default function AdminQuestions() {
   }, []);  
   
   const handleGenerate = async () => {
+    if (recentJobs.some(j => j.status === "RUNNING")) {
+      setError("A generation job is already running.");
+      return;
+    }    
+
     setLoading(true);
     setError("");
   
@@ -278,26 +294,18 @@ export default function AdminQuestions() {
                   <option value="PASSAGE">Passage</option>
                 </select>
               </Field>
-  
-              {/* Count */}
-              <Field label="Number of Questions">
-                <input
-                  type="number"
-                  value={count}
-                  onChange={e =>
-                    setCount(Number(e.target.value))
-                  }
-                  className="skeuo-input"
-                />
-              </Field>
-  
+
               {/* Difficulty */}
               <Field label="Difficulty">
                 <div className="flex gap-2">
                   {["Easy", "Medium", "Hard"].map(level => (
                     <button
                       key={level}
-                      onClick={() => setDifficulty(level)}
+                      onClick={() => {
+                        setDifficulty(level);
+                        const max = difficultyLimits[level];
+                        if (count > max) setCount(max);
+                      }}                      
                       className={`
                         skeuo-chip
                         ${difficulty === level
@@ -311,10 +319,37 @@ export default function AdminQuestions() {
                 </div>
               </Field>
   
+              {/* Count */}
+              <Field label="Number of Questions">
+              <input
+                type="number"
+                value={count}
+                min={1}
+                max={difficultyLimits[difficulty]}
+                onChange={e => {
+                  const value = Number(e.target.value);
+                  const max = difficultyLimits[difficulty];
+                  setCount(Math.min(value, max));
+                }}
+                className="skeuo-input"
+              />
+              </Field>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Max allowed for {difficulty}: {difficultyLimits[difficulty]}
+              </p>
+
+  
               {/* Generate */}
               <button
                 onClick={handleGenerate}
-                disabled={loading || job?.status === "RUNNING"}
+                disabled={
+                  loading ||
+                  job?.status === "RUNNING" ||
+                  !exam ||
+                  !subject ||
+                  !type ||
+                  count < 1
+                }                
                 className="skeuo-primary-btn mt-3"
               >
                 <span className="material-symbols-outlined text-lg">
@@ -335,7 +370,7 @@ export default function AdminQuestions() {
                 Statistics
               </h3>
   
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <StatTile
                   label="Total Questions"
                   value={stats.totalQuestions}
@@ -346,6 +381,11 @@ export default function AdminQuestions() {
                   label="Approval Rate"
                   value={`${avgApprovalRate}%`}
                   accent="green"
+                />
+
+                <StatTile
+                  label="Rejection Rate"
+                  value={`${100 - avgApprovalRate}%`}
                 />
               </div>
   
@@ -393,12 +433,11 @@ export default function AdminQuestions() {
   
                 <div className="space-y-2">
                   {recentJobs.map(j => (
-                    <button
-                      key={j.id}
-                      onClick={() => setJob(j)}
-                      className="skeuo-job-card"
-                    >
-                      <div>
+                    <div key={j.id} className="skeuo-job-card">
+                      <div
+                        className="flex-1 cursor-pointer"
+                        onClick={() => setJob(j)}
+                      >
                         <p className="text-xs font-bold">
                           {j.exam} • {j.subject}
                         </p>
@@ -407,17 +446,32 @@ export default function AdminQuestions() {
                           {j.approved}/{j.generated} approved • {j.type}
                         </p>
                       </div>
-  
-                      <span
-                        className={`status-badge
-                          ${j.status === "RUNNING" ? "status-running" :
-                            j.status === "COMPLETED" ? "status-completed" :
-                            j.status === "FAILED" ? "status-failed" :
-                            j.status === "PARTIAL" ? "status-partial" : ""}`}
-                      >
-                        {j.status}
-                      </span>
-                    </button>  
+
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`status-badge
+                            ${j.status === "RUNNING" ? "status-running" :
+                              j.status === "COMPLETED" ? "status-completed" :
+                              j.status === "FAILED" ? "status-failed" :
+                              j.status === "PARTIAL" ? "status-partial" : ""}`}
+                        >
+                          {j.status}
+                        </span>
+
+                        {(j.status === "FAILED" || j.status === "PARTIAL") && (
+                          <button
+                            onClick={async () => {
+                              setActiveJobId(j.id);
+                              await retryJob({ jobId: j.id });
+                            }}
+                            className="retry-btn"
+                          >
+                            ↻
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                   ))}
                 </div>
               </div>
@@ -430,11 +484,20 @@ export default function AdminQuestions() {
       {/* Modal */}
       {job && (
         <GenerationJobModal
-          job={job}
+          job={{
+            ...job,
+            onReview: (jobId) => setReviewJobId(jobId)
+          }}
           onClose={() => setJob(null)}
         />
       )}
-  
+
+      {reviewJobId && (
+        <ApprovedQuestionsModal
+          jobId={reviewJobId}
+          onClose={() => setReviewJobId(null)}
+        />
+      )}
   
   
       {/* Skeuomorphic Styles */}
@@ -444,16 +507,12 @@ export default function AdminQuestions() {
       .skeuo-card {
         border-radius: 22px;
         padding: 22px;
-
-        background: rgba(255,255,255,0.55);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-
-        border: 1px solid rgba(255,255,255,0.4);
+        background: linear-gradient(145deg, #ffffff, #e8edf5);
+        border: 1px solid #e5e7eb;
 
         box-shadow:
-          0 10px 30px rgba(0,0,0,0.08),
-          inset 0 1px 0 rgba(255,255,255,0.6);
+          10px 10px 20px rgba(0,0,0,0.08),
+          -6px -6px 14px rgba(255,255,255,0.9);
       }
 
 
@@ -462,21 +521,20 @@ export default function AdminQuestions() {
         width:100%;
         padding:12px 14px;
         border-radius:14px;
-        border:1px solid rgba(0,0,0,0.05);
         font-size:14px;
-
-        background: rgba(255,255,255,0.7);
-
+        background: #f4f6f9;
+        border:1px solid #e2e8f0;
         box-shadow:
-          inset 0 2px 4px rgba(0,0,0,0.05);
-
+          inset 4px 4px 8px rgba(0,0,0,0.05),
+          inset -4px -4px 8px rgba(255,255,255,0.9);
         transition: all .2s ease;
       }
 
       .skeuo-input:focus {
         outline:none;
-        border-color:#6366f1;
         box-shadow:
+          inset 3px 3px 6px rgba(0,0,0,0.08),
+          inset -3px -3px 6px rgba(255,255,255,0.8),
           0 0 0 3px rgba(99,102,241,0.15);
       }
 
@@ -492,14 +550,14 @@ export default function AdminQuestions() {
         border-radius:16px;
         border:none;
 
-        background: linear-gradient(135deg,#4f46e5,#6366f1);
+        background: linear-gradient(to bottom, #6366f1, #4f46e5);
         color:white;
         font-weight:700;
 
         box-shadow:
           0 8px 18px rgba(79,70,229,0.35);
 
-        transition: all .2s ease;
+        transition: all .15s ease;
       }
 
       .skeuo-primary-btn:hover {
@@ -509,7 +567,9 @@ export default function AdminQuestions() {
       }
 
       .skeuo-primary-btn:active {
-        transform: translateY(0);
+        box-shadow:
+          inset 4px 4px 8px rgba(0,0,0,0.25);
+        transform: translateY(2px);
       }
 
       .skeuo-primary-btn:disabled {
@@ -525,36 +585,33 @@ export default function AdminQuestions() {
         font-size:12px;
         font-weight:600;
         border-radius:14px;
-        border:1px solid rgba(0,0,0,0.05);
+        border:1px solid #e5e7eb;
 
-        background: rgba(255,255,255,0.6);
-        backdrop-filter: blur(10px);
+        background: linear-gradient(145deg, #ffffff, #e8edf5);
 
-        transition: all .2s ease;
-      }
-
-      .skeuo-chip:hover {
-        background: rgba(255,255,255,0.85);
+        transition: all .15s ease;
       }
 
       .skeuo-chip.active {
-        background: linear-gradient(135deg,#4f46e5,#6366f1);
+        background: linear-gradient(to bottom, #6366f1, #4f46e5);
         color:white;
         box-shadow:
-          0 6px 14px rgba(79,70,229,0.35);
+          inset 4px 4px 8px rgba(0,0,0,0.2);
       }
 
 
       /* ================= STAT TILE ================= */
       .stat-tile {
-        border-radius:16px;
+        border-radius:18px;
         padding:18px;
 
-        background: rgba(255,255,255,0.65);
-        backdrop-filter: blur(12px);
+        background: linear-gradient(145deg, #ffffff, #e6ebf2);
 
         box-shadow:
-          0 6px 18px rgba(0,0,0,0.06);
+          6px 6px 14px rgba(0,0,0,0.08),
+          -4px -4px 10px rgba(255,255,255,0.9);
+
+        text-align:center;
       }
 
       .stat-tile p:first-child {
@@ -592,23 +649,23 @@ export default function AdminQuestions() {
         padding:14px;
         border-radius:18px;
 
-        background: rgba(255,255,255,0.65);
-        backdrop-filter: blur(12px);
+        background: linear-gradient(145deg, #ffffff, #e8edf5);
 
         display:flex;
         justify-content:space-between;
         align-items:center;
 
         box-shadow:
-          0 6px 18px rgba(0,0,0,0.06);
+          6px 6px 14px rgba(0,0,0,0.08),
+          -4px -4px 10px rgba(255,255,255,0.9);
+
+        border: 1px solid #e5e7eb;
 
         transition: all .2s ease;
       }
 
       .skeuo-job-card:hover {
         transform: translateY(-2px);
-        box-shadow:
-          0 12px 24px rgba(0,0,0,0.08);
       }
 
 
@@ -638,6 +695,21 @@ export default function AdminQuestions() {
       .status-partial {
         background:rgba(234,179,8,0.15);
         color:#ca8a04;
+      }
+
+      .retry-btn {
+        font-size:12px;
+        padding:6px 8px;
+        border-radius:10px;
+        border:none;
+        background: rgba(99,102,241,0.15);
+        color:#4f46e5;
+        font-weight:700;
+        transition:.2s;
+      }
+
+      .retry-btn:hover {
+        background: rgba(99,102,241,0.25);
       }
 
       `}</style>

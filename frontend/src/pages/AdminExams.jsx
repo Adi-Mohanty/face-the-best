@@ -6,6 +6,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { db } from "../services/firebase";
+import AddEditExams from "../components/admin/AddEditExams";
 
 export default function AdminExams() {
 
@@ -25,6 +26,8 @@ export default function AdminExams() {
     message: "",
     type: "success"
   });
+
+  const [editExam, setEditExam] = useState(null);
 
   const showSnackbar = (message, type = "success") => {
     setSnackbar({ open: true, message, type });
@@ -139,7 +142,19 @@ export default function AdminExams() {
 
                   {list.map(exam => (
 
-                    <div key={exam.id} className="exam-card">
+                    <div 
+                      key={exam.id}
+                      className="exam-card group relative cursor-pointer"
+                      onClick={() => {
+                        setEditExam(exam);
+                        setShowModal(true);
+                      }}
+                    >
+                      <span className="edit-badge">
+                        <span className="material-symbols-outlined">
+                          edit
+                        </span>
+                      </span>
 
                       <div className="flex items-center gap-3 mb-2">
 
@@ -175,7 +190,23 @@ export default function AdminExams() {
 
 
       {/* ================= MODAL ================= */}
-      {showModal && (
+      <AddEditExams
+        open={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditExam(null);
+        }}
+        subjects={subjects}
+        editData={editExam}
+        onSuccess={() => {
+          fetchExams();
+          showSnackbar(editExam ? "Exam updated" : "Exam added");
+        }}
+      />
+
+
+
+     {/* {showModal && (
         <div className="modal-overlay">
 
           <div className="modal-card">
@@ -207,7 +238,6 @@ export default function AdminExams() {
                 className="glass-input"
               />
 
-              {/* Category */}
               <div>
                 <p className="modal-section-label">
                   Choose Category
@@ -231,7 +261,6 @@ export default function AdminExams() {
                 </div>
               </div>
 
-              {/* Subjects */}
               <div className="grid grid-cols-3 gap-3 pr-2">
                 {subjects.map(sub => (
                   <label
@@ -280,7 +309,9 @@ export default function AdminExams() {
 
           </div>
         </div>
-      )}
+      )} */}
+
+
 
 
       {/* ================= SNACKBAR ================= */}
@@ -306,15 +337,59 @@ export default function AdminExams() {
         .exam-card {
           padding:22px;
           border-radius:22px;
+          position: relative;
+          overflow: hidden;
           background: rgba(255,255,255,0.7);
           backdrop-filter: blur(14px);
-          box-shadow:
-            0 10px 28px rgba(0,0,0,0.08);
+          box-shadow: 0 10px 28px rgba(0,0,0,0.08);
           transition: all .2s ease;
+        }
+
+        .edit-icon {
+          position: absolute;
+          right: -40px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 20px;
+          color: #6366f1;
+          transition: right .25s ease;
         }
 
         .exam-card:hover {
           transform: translateY(-3px);
+        }
+
+        .exam-card:hover .edit-icon {
+          right: 16px;
+        }
+
+        .edit-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          width: 34px;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          background: rgba(255,255,255,0.6);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.4);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+          opacity: 0;
+          transform: scale(0.8);
+          transition: all .25s ease;
+        }
+
+        .exam-card:hover .edit-badge {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        .edit-badge .material-symbols-outlined {
+          font-size: 18px;
+          color: #6366f1;
         }
 
         .category-heading {
@@ -345,19 +420,74 @@ export default function AdminExams() {
           color:white;
         }
 
+        .subject-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
         .subject-pill {
-          display:flex;
-          align-items:center;
-          gap:8px;
-          padding:10px;
-          border-radius:16px;
-          border:1px solid rgba(0,0,0,0.06);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 10px 12px;
+          border-radius: 16px;
+          border: 1px solid rgba(0,0,0,0.06);
           background: rgba(255,255,255,0.7);
+          transition: all .2s ease;
         }
 
         .subject-pill.active {
-          border-color:#6366f1;
+          border-color: #6366f1;
           background: rgba(99,102,241,0.15);
+        }
+
+        .subject-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+        }
+
+        .accordion-toggle {
+          background: rgba(255,255,255,0.6);
+          border: none;
+          border-radius: 10px;
+          padding: 4px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .accordion-toggle .material-symbols-outlined {
+          font-size: 18px;
+          color: #6366f1;
+        }
+
+        .difficulty-grid {
+          padding: 12px;
+          border-radius: 14px;
+          background: rgba(99,102,241,0.08);
+          backdrop-filter: blur(10px);
+          box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .difficulty-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .difficulty-row input {
+          width: 70px;
+          padding: 6px 8px;
+          border-radius: 8px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: white;
         }
 
         .primary-glass-btn {
@@ -389,12 +519,30 @@ export default function AdminExams() {
           z-index:100;
         }
 
+        .modal-scroll-content {
+          overflow-y: auto;
+          max-height: 75vh;
+          padding-right: 10px;
+        }
+
+        .modal-scroll-content::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .modal-scroll-content::-webkit-scrollbar-thumb {
+          background: rgba(99,102,241,0.4);
+          border-radius: 999px;
+        }
+
         .modal-card {
           width: 720px;
           max-height: 85vh;
-          overflow-y: auto;
+          // overflow-y: auto;
           padding: 34px;
           border-radius: 28px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
           background: rgba(255,255,255,0.92);
           backdrop-filter: blur(25px);
           box-shadow:

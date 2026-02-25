@@ -7,8 +7,8 @@ import Quiz from "./pages/Quiz";
 import Result from "./pages/Result";
 import Review from "./pages/Review";
 
-import AdminExams from "./pages/AdminExams";
-import AdminSubjects from "./pages/AdminSubjects";
+import AdminExams from "./pages/admin/AdminExams";
+import AdminSubjects from "./pages/admin/AdminSubjects";
 
 import Unauthorized from "./pages/Unauthorized";
 import Welcome from "./pages/Welcome";
@@ -18,7 +18,9 @@ import AdminRoute from "./components/AdminRoute";
 
 import AppLayout from "./components/layout/AppLayout";
 import PublicLayout from "./components/layout/PublicLayout";
-import AdminQuestions from "./pages/AdminQuestons";
+import QuestionsDashboard from "./pages/admin/QuestionsDashboard";
+import GenerateQuestions from "./pages/admin/GenerateQuestions";
+import ManualAddQuestions from "./pages/admin/ManualAddQuestions";
 
 
 export default function App() {
@@ -61,11 +63,38 @@ export default function App() {
 
 
         {/* ADMIN ROUTES INSIDE SAME LAYOUT */}
-        <Route
+        {/* <Route
           path="/admin/questions"
           element={
             <AdminRoute>
               <AdminQuestions />
+            </AdminRoute>
+          }
+        /> */}
+
+        <Route
+          path="/admin/questions"
+          element={
+            <AdminRoute>
+              <QuestionsDashboard />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/questions/generate"
+          element={
+            <AdminRoute>
+              <GenerateQuestions />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/questions/manual"
+          element={
+            <AdminRoute>
+              <ManualAddQuestions />
             </AdminRoute>
           }
         />

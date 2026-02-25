@@ -1,13 +1,14 @@
-import { auth } from "../services/firebase";
+import { auth } from "../../services/firebase";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "../services/firebase";
+import { functions } from "../../services/firebase";
 import { useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../services/firebase";
+import { db } from "../../services/firebase";
 import { useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import GenerationJobModal from "../components/GenerationJobModal";
-import ApprovedQuestionsModal from "../components/ApprovedQuestionsModal";
+import GenerationJobModal from "../../components/GenerationJobModal";
+import ApprovedQuestionsModal from "../../components/ApprovedQuestionsModal";
+import { useNavigate } from "react-router-dom";
 
 function Field({ label, children }) {
   return (
@@ -27,7 +28,9 @@ function Field({ label, children }) {
   );
 }
 
-export default function AdminQuestions() {
+export default function GenerateQuestions() {
+  const navigate = useNavigate();
+
   const [exam, setExam] = useState(null);
   const [subject, setSubject] = useState("");
   const [type, setType] = useState("");
@@ -222,14 +225,23 @@ export default function AdminQuestions() {
     ">
       <main className="max-w-[1100px] mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white">
-            Question Generation Console
-          </h2>
-  
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Generate and manage AI-powered questions for exams
-          </p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white">
+              Question Generation Console
+            </h2>
+    
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Generate and manage AI-powered questions for exams
+            </p>
+          </div>
+
+          <button
+              onClick={() => navigate("/admin/questions")}
+              className="skeuo-back-btn"
+            >
+              ← Back
+          </button>
         </div>
   
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -575,6 +587,29 @@ export default function AdminQuestions() {
       .skeuo-primary-btn:disabled {
         opacity:.6;
         cursor:not-allowed;
+      }
+
+
+      .skeuo-back-btn {
+        padding:10px 20px;
+        border-radius:14px;
+        font-size:14px;
+        font-weight:600;
+        background: linear-gradient(145deg,#ffffff,#e8edf5);
+        box-shadow:
+          6px 6px 14px rgba(0,0,0,0.2),
+          -4px -4px 10px rgba(255,255,255,0.9);
+        transition: all .15s ease;
+      }
+
+      .skeuo-back-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .skeuo-back-btn:active {
+        transform: translateY(2px);
+        box-shadow:
+          inset 4px 4px 8px rgba(0,0,0,0.25);
       }
 
 

@@ -78,11 +78,11 @@ export default function Navbar() {
       path: "/exams",
       icon: "school"
     },
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: "dashboard"
-    },
+    // {
+    //   name: "Dashboard",
+    //   path: "/dashboard",
+    //   icon: "dashboard"
+    // },
     {
       name: "Profile",
       path: "/profile",
@@ -99,11 +99,11 @@ export default function Navbar() {
 
   // ADMIN NAVS
   const adminNavs = [
-    {
-      name: "Dashboard",
-      path: "/admin/dashboard",
-      icon: "dashboard"
-    },
+    // {
+    //   name: "Dashboard",
+    //   path: "/admin/dashboard",
+    //   icon: "dashboard"
+    // },
     {
       name: "Questions",
       path: "/admin/questions",
@@ -119,11 +119,11 @@ export default function Navbar() {
       path: "/admin/subjects",
       icon: "menu_book"
     },
-    {
-      name: "Users",
-      path: "/admin/users",
-      icon: "group"
-    }
+    // {
+    //   name: "Users",
+    //   path: "/admin/users",
+    //   icon: "group"
+    // }
 
   ];
 

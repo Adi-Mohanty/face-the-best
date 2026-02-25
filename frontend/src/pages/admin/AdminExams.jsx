@@ -5,8 +5,8 @@ import {
   getDocs,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "../services/firebase";
-import AddEditExams from "../components/admin/AddEditExams";
+import { db } from "../../services/firebase";
+import AddEditExams from "../../components/admin/AddEditExams";
 
 export default function AdminExams() {
 

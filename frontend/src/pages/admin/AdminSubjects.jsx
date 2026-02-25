@@ -5,7 +5,7 @@ import {
   getDocs,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "../services/firebase";
+import { db } from "../../services/firebase";
 
 export default function AdminSubjects() {
   const [name, setName] = useState("");

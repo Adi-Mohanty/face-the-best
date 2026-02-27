@@ -30,8 +30,8 @@ export default function StatementQuestion({
       {/* Options */}
       <div className="space-y-4">
       {question.options.map((opt, i) => {
-        const isUser = userAnswer === i;
-        const isCorrect = question.correctOption === i;
+        const isUser = Number(userAnswer) === i;
+        const isCorrect = Number(question.correctOption) === i;
 
         let styles = "border-slate-200 hover:border-slate-300";
 

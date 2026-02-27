@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { fetchQuestions } from "../services/questions";
 import QuestionRenderer from "../components/questions/QuestionRenderer";
 import { auth } from "../services/firebase";
 import InstructionsModal from "../components/quiz/Instructions";
@@ -14,6 +13,7 @@ const TOTAL_TIME = 600;
 export default function Quiz() {
     const navigate = useNavigate();
     const { state } = useLocation();
+    const startQuiz = httpsCallable(functions, "startQuiz");
     const { exam, subject } = state || {};
     
     useEffect(() => {
@@ -25,12 +25,16 @@ export default function Quiz() {
     const [phase, setPhase] = useState("loading");
     // loading | noQuestions | instructions | exam
 
+    const [attemptId, setAttemptId] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState({});
     const [skipped, setSkipped] = useState(new Set());
     const [markedForReview, setMarkedForReview] = useState(new Set());
     const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
+    const [isStarting, setIsStarting] = useState(false);
+
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [questions, setQuestions] = useState([]);
     const [questionStartTime, setQuestionStartTime] = useState(Date.now());
     const [responses, setResponses] = useState({});
@@ -44,30 +48,78 @@ export default function Quiz() {
 
     useEffect(() => {
       console.log("Current user:", auth.currentUser);
-    }, []); 
+    }, []);    
+
+
+    // useEffect(() => {
+    //   if (!exam || !subject) return;
+    //   if (attemptId) return;
+
+    //   const load = async () => {
+    //     try {
+    //       const res = await startQuiz({
+    //         exam,
+    //         subject,
+    //         count: 10
+    //       });
+    
+    //       const { attemptId, questions } = res.data;
+    
+    //       setAttemptId(attemptId);
+    //       setQuestions(questions);
+    //       setPhase("instructions");
+    
+    //     } catch (e) {
+    //       console.error(e);
+    //       setPhase("noQuestions");
+    //     }
+    //   };
+    
+    //   load();
+    // }, [exam, subject, attemptId]);
+
 
     useEffect(() => {
-      const load = async () => {
-        try {
-          const data = await fetchQuestions(exam.type, subject.name, 10);
+      if (!exam || !subject) return;
+      if (attemptId || isStarting) return;
     
-          if (data.length < 10) {
+      const load = async () => {
+        setIsStarting(true);
+    
+        try {
+          const res = await startQuiz({ exam, subject, count: 10 });
+    
+          const { attemptId, questions } = res.data;
+    
+          if (!questions || questions.length === 0) {
             setPhase("noQuestions");
             return;
           }
     
-          setQuestions(data);
+          setAttemptId(attemptId);
+          setQuestions(questions);
           setPhase("instructions");
-        } catch (e) {
-          console.error(e);
-          setPhase("noQuestions");
+    
+        } catch (error) {
+          console.error("Failed to start quiz:", error);
+    
+          // Specifically handle not enough questions
+          if (error?.code === "functions/failed-precondition") {
+            setPhase("noQuestions");
+          } else {
+            setPhase("noQuestions"); 
+            // You could also create a separate "error" phase if needed
+          }
+    
         } finally {
-          // setLoading(false);
+          setIsStarting(false);
         }
       };
     
       load();
-    }, [exam, subject]);    
+    
+    }, [exam, subject, attemptId, isStarting]);
+
   
     /* ---------------- TIMER ---------------- */
     useEffect(() => {
@@ -77,7 +129,7 @@ export default function Quiz() {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(interval);
-            handleSubmit();
+            if (!isSubmitting) handleSubmit();
             return 0;
           }
     
@@ -86,7 +138,22 @@ export default function Quiz() {
       }, 1000);
     
       return () => clearInterval(interval);
-    }, [phase]);    
+    }, [phase]);  
+    
+    useEffect(() => {
+      if (phase !== "exam") return;
+    
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = "";
+      };
+    
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    }, [phase]);
 
     useEffect(() => {
         // Do not persist after submission
@@ -240,10 +307,11 @@ export default function Quiz() {
           skipped: r?.skipped ?? true,
           markedForReview: r?.markedForReview ?? false,
           timeTakenMs: r?.timeTakenMs ?? 0,
-          isCorrect: r?.isCorrect ?? false
+          // isCorrect: r?.isCorrect ?? false
         };
       });
     };
+
 
     const recordResponse = ({
       questionId,
@@ -251,11 +319,11 @@ export default function Quiz() {
       skipped,
       markedForReview
     }) => {
+    
       const timeTakenMs = Math.max(
         0,
         Date.now() - questionStartTime
-      );      
-      const q = questions.find(q => q.id === questionId);
+      );
     
       setResponses(prev => ({
         ...prev,
@@ -264,40 +332,57 @@ export default function Quiz() {
           selectedOption,
           skipped,
           markedForReview,
-          isCorrect:
-            selectedOption !== null &&
-            selectedOption === q.correctOption,
           timeTakenMs
         }
       }));
-    }; 
-  
-
+    };
+    
     const handleSubmit = async () => {
-      if (isSubmitted) return;
+      if (isSubmitted || isSubmitting) return;
     
-      setIsSubmitted(true);
-      localStorage.removeItem(STORAGE_KEY);
+      setIsSubmitting(true);
     
-      const payload = {
-        exam,
-        subject,
-        questions: questions.map(q => q.id),
-        responses: buildFinalResponses(),
-        startedAt: quizStartTime ?? Date.now(),
-        finishedAt: Date.now()
-      };
+      // 🔥 FORCE RECORD CURRENT QUESTION BEFORE SUBMIT
+      if (question) {
+        recordResponse({
+          questionId: question.id,
+          selectedOption: answers[question.id] ?? null,
+          skipped: !answers[question.id],
+          markedForReview: markedForReview.has(question.id)
+        });
+      }
+    
+      // 🔥 Build responses from CURRENT answers instead of state
+      const finalResponses = questions.map(q => {
+        const selected = answers[q.id];
+    
+        return {
+          questionId: q.id,
+          selectedOption: selected ?? null,
+          skipped: selected == null,
+          markedForReview: markedForReview.has(q.id),
+          timeTakenMs: responses[q.id]?.timeTakenMs ?? 0
+        };
+      });
     
       try {
-        const res = await submitAttempt(payload);
+        const res = await submitAttempt({
+          attemptId,
+          responses: finalResponses,
+          finishedAt: Date.now()
+        });
+
+        console.log("finalResponses",finalResponses);
+        console.log(`/result/${res.data.attemptId}`);
     
-        navigate(`/result/${res.data.attemptId}`)       
-        
+        localStorage.removeItem(STORAGE_KEY);
+        navigate(`/result/${res.data.attemptId}`);
+    
       } catch (err) {
         console.error("Failed to submit attempt", err);
-        setIsSubmitted(false);
+        setIsSubmitting(false);
       }
-    };  
+    };
     
     
     const handleSubmitClick = () => {
@@ -502,11 +587,12 @@ export default function Quiz() {
                       shadow-[6px_6px_12px_rgba(0,0,0,0.2)]
                       transition-all duration-150
                       active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)]
-                      active:translate-y-[2px]"
+                      active:translate-y-[2px] disabled:opacity-60 disabled:cursor-not-allowed"
            
                         onClick={handleSubmitClick}
+                        disabled={isSubmitting}
                       >
-                        Submit
+                        {isSubmitting ? "Submitting..." : "Submit"}
                       </button>
                     ) : (
                       <button

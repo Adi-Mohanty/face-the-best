@@ -876,3 +876,4 @@ export const ping = onCall(() => {
 // });
 
 export { submitAttempt } from "./attempts/submitAttempt";
+export { startQuiz } from "./attempts/startQuiz";

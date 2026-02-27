@@ -93,6 +93,9 @@ export default function Result() {
     skippedCount,
     totalQuestions
   } = result;
+
+  // console.log("responses", responses);
+  console.log(responses.map(r => r.questionId));
   
   const wrong = attemptedCount - correctCount;
   const markedCount = responses.filter(r => r.markedForReview).length;

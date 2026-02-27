@@ -15,74 +15,72 @@ export default function Review() {
   const [questionDocs, setQuestionDocs] = useState([]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-
+  
+  
   useEffect(() => {
     async function fetchAttemptAndQuestions() {
       const auth = getAuth();
       const user = auth.currentUser;
-
+  
       if (!user) {
         navigate("/login");
         return;
       }
-
+  
       const snap = await getDoc(doc(db, "attempts", attemptId));
-
+  
       if (!snap.exists()) {
         navigate("/exams");
         return;
       }
-
+  
       const attemptData = snap.data();
-
-      // 🔒 OWNER VALIDATION
+  
       if (attemptData.userId !== user.uid) {
         navigate("/exams");
         return;
       }
-
+  
       setAttempt(attemptData);
   
-      // 🔥 Fetch actual question documents in batches
-      const questionIds = attemptData.questions;
-
-      // Firestore "in" supports max 10 IDs per query
-      const chunkSize = 10;
-      const chunks = [];
-
-      for (let i = 0; i < questionIds.length; i += chunkSize) {
-        chunks.push(questionIds.slice(i, i + chunkSize));
+      const questionIds = attemptData.questionIds;
+  
+      if (!Array.isArray(questionIds) || questionIds.length === 0) {
+        navigate("/exams");
+        return;
       }
-
-      let allQuestions = [];
-
-      for (const chunk of chunks) {
-        const q = query(
-          collection(db, "questions"),
-          where(documentId(), "in", chunk)
-        );
-
-        const snap = await getDocs(q);
-
-        snap.forEach(doc => {
-          allQuestions.push({
-            id: doc.id,
-            ...doc.data()
-          });
+  
+      // 🔥 Fetch questions STRICTLY in stored order
+      const fetchedQuestions = [];
+  
+      for (const id of questionIds) {
+        const qSnap = await getDoc(doc(db, "questions", id));
+  
+        if (!qSnap.exists()) {
+          console.error("Missing question:", id);
+          continue; // or handle error
+        }
+  
+        fetchedQuestions.push({
+          id: qSnap.id,
+          ...qSnap.data()
         });
       }
-
-      // 🔥 Preserve original order
-      const orderedQuestions = questionIds.map(id =>
-        allQuestions.find(q => q.id === id)
-      );
-
-      setQuestionDocs(orderedQuestions);
+  
+      // 🔒 HARD VALIDATION
+      if (fetchedQuestions.length !== questionIds.length) {
+        console.error("Question mismatch detected");
+        navigate("/exams");
+        return;
+      }
+  
+      setQuestionDocs(fetchedQuestions);
       setLoading(false);
     }
   
     fetchAttemptAndQuestions();
-  }, [attemptId]);  
+  }, [attemptId]);
+
 
   if (loading) return <div>Loading...</div>;
   if (!attempt) {
@@ -95,22 +93,83 @@ export default function Review() {
     );
   }  
 
-  const { responses } = attempt;
+  // const { responses } = attempt;
   const questions = questionDocs;
 
-  const responseMap = Object.fromEntries(
-    responses.map(r => [r.questionId, r])
-  );
+  // const responseMap = Object.fromEntries(
+  //   responses.map(r => [r.questionId, r])
+  // );
+
+  // const responseMap = {};
+  // (attempt.responses || []).forEach(r => {
+  //   responseMap[r.questionId] = r;
+  // });
 
   const question = questions[currentIndex];
   if (!question) return null;
 
+  // const response = responseMap[question.id];
+
+  // const userAnswer = response?.selectedOption;
+  // const isCorrect =
+  //   response &&
+  //   response.selectedOption !== null &&
+  //   response.selectedOption === question.correctOption;
+
+  // const isSkipped = response?.selectedOption === null;
+  const totalQuestions = questions.length;
+
+  console.log("attempt.responses: ", attempt.responses);
+
+  // const responseMap = new Map();
+
+  // (attempt.responses || []).forEach(r => {
+  //   responseMap.set(
+  //     String(r.questionId).trim(),
+  //     {
+  //       ...r,
+  //       selectedOption:
+  //         r.selectedOption !== null
+  //           ? Number(r.selectedOption)
+  //           : null
+  //     }
+  //   );
+  // });
+
+
+  const responseMap = Object.fromEntries(
+    (attempt.responses || []).map(r => [
+      String(r.questionId),
+      {
+        ...r,
+        selectedOption:
+          r.selectedOption !== null
+            ? Number(r.selectedOption)
+            : null
+      }
+    ])
+  );
+
+  console.log("responseMap: ", responseMap);
+  console.log("question.id: ", question.id);
+  // console.log([...responseMap.keys()]);
+
   const response = responseMap[question.id];
 
-  const userAnswer = response?.selectedOption;
-  const isCorrect = response?.isCorrect;
-  const totalQuestions = questions.length;
-  const isSkipped = response?.selectedOption === null;
+  console.log("response: ", response);
+
+  const isSkipped =
+    !response ||
+    response.selectedOption === null;
+
+  const isCorrect =
+    !isSkipped &&
+    Number(response.selectedOption) === Number(question.correctOption);
+
+  console.log(
+    response?.selectedOption,
+    question.correctOption
+  );  
 
   const goNext = () => {
     if (currentIndex < totalQuestions - 1) {
@@ -130,9 +189,15 @@ export default function Review() {
 
   const getQuestionStatus = (q) => {
     const r = responseMap[q.id];
-    if (!r || r.selectedOption === null) return "unattempted";
-    return r.isCorrect ? "correct" : "incorrect";
-  };    
+  
+    if (!r || r.selectedOption === null) {
+      return "unattempted";
+    }
+  
+    return Number(r.selectedOption) === Number(q.correctOption)
+      ? "correct"
+      : "incorrect";
+  };
 
     return (
       <div className="bg-background-light dark:bg-background-dark font-display text-[#0f0f1a] dark:text-white">
@@ -160,7 +225,7 @@ export default function Review() {
                     </h1>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      {attempt.examType} • {attempt.subjectName}
+                    {attempt.examType || "Exam"} • {attempt.subjectName || "Subject"}
                     </p>
                   </div>
 
@@ -228,7 +293,7 @@ export default function Review() {
               ">
                 <QuestionRenderer
                   question={question}
-                  userAnswer={userAnswer}
+                  userAnswer={response?.selectedOption ?? null}
                   mode="review"
                 />
               </div>
@@ -255,21 +320,6 @@ export default function Review() {
                 </span>
                 Previous
               </button>
-
-              {/* <div className="hidden sm:flex gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-primary font-bold hover:bg-primary/10">
-                  <span className="material-symbols-outlined">
-                    bookmark_add
-                  </span>
-                  Save
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-primary font-bold hover:bg-primary/10">
-                  <span className="material-symbols-outlined">
-                    flag
-                  </span>
-                  Report
-                </button>
-              </div> */}
 
               <button
                 onClick={goNext} 

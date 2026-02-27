@@ -2,10 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 export const submitAttempt = onCall(
-  {
-    cors: true,
-    region: "asia-south1"
-  },
+  { cors: true, region: "asia-south1" },
   async (request) => {
 
     const uid = request.auth?.uid;
@@ -13,33 +10,57 @@ export const submitAttempt = onCall(
       throw new HttpsError("unauthenticated", "Login required");
     }
 
-    const { exam, subject, responses, questions, startedAt, finishedAt } =
-      request.data;
+    const { attemptId, responses } = request.data;
 
-    if (!exam || !subject || !Array.isArray(responses) || !Array.isArray(questions)) {
+    if (!attemptId || !Array.isArray(responses)) {
       throw new HttpsError("invalid-argument", "Invalid payload");
     }
 
-    if (questions.length === 0) {
-      throw new HttpsError("invalid-argument", "No questions provided");
+    const db = admin.firestore();
+    const attemptRef = db.collection("attempts").doc(attemptId);
+    const attemptDoc = await attemptRef.get();
+
+    if (!attemptDoc.exists) {
+      throw new HttpsError("not-found", "Attempt not found");
     }
 
-    const db = admin.firestore();
+    const attempt = attemptDoc.data()!;
 
-    /* ---------------- SECURE SCORING ---------------- */
+    if (attempt.userId !== uid) {
+      throw new HttpsError("permission-denied", "Unauthorized");
+    }
 
-    const questionDocs = await Promise.all(
-      questions.map((id: string) =>
-        db.collection("questions").doc(id).get()
-      )
-    );
+    if (attempt.status !== "IN_PROGRESS") {
+      throw new HttpsError("failed-precondition", "Attempt already completed");
+    }
 
-    const questionMap = new Map();
-    questionDocs.forEach(doc => {
-      if (doc.exists) {
+    const questionIds: string[] = attempt.questionIds;
+
+    if (!Array.isArray(questionIds) || questionIds.length === 0) {
+      throw new HttpsError("invalid-argument", "Invalid stored questions");
+    }
+
+    // ---------- Efficient batch fetch ----------
+
+    const chunkSize = 10;
+    const chunks: string[][] = [];
+
+    for (let i = 0; i < questionIds.length; i += chunkSize) {
+      chunks.push(questionIds.slice(i, i + chunkSize));
+    }
+
+    const questionMap = new Map<string, any>();
+
+    for (const chunk of chunks) {
+      const snap = await db
+        .collection("questions")
+        .where(admin.firestore.FieldPath.documentId(), "in", chunk)
+        .get();
+
+      snap.forEach(doc => {
         questionMap.set(doc.id, doc.data());
-      }
-    });
+      });
+    }
 
     const attempted = responses.filter(
       (r: any) => r.selectedOption !== null
@@ -54,14 +75,17 @@ export const submitAttempt = onCall(
       }
     }
 
-    const totalQuestions = questions.length;
+    const totalQuestions = questionIds.length;
 
-    const totalTimeMs =
-      typeof startedAt === "number" &&
-      typeof finishedAt === "number" &&
-      finishedAt >= startedAt
-        ? finishedAt - startedAt
-        : 0;
+    const startedAt = attempt.startedAt?.toMillis?.() ?? 0;
+    const serverNow = Date.now();
+    const MAX_DURATION_MS = 600 * 1000;
+
+    if (serverNow - startedAt > MAX_DURATION_MS + 15000) {
+      throw new HttpsError("failed-precondition", "Attempt expired");
+    }
+
+    const totalTimeMs = Math.min(serverNow - startedAt, MAX_DURATION_MS);
 
     const avgTimeMs =
       attempted.length > 0
@@ -75,10 +99,7 @@ export const submitAttempt = onCall(
 
     const result = {
       score: correctCount,
-      accuracy:
-        totalQuestions > 0
-          ? correctCount / totalQuestions
-          : 0,
+      accuracy: totalQuestions > 0 ? correctCount / totalQuestions : 0,
       correctCount,
       attemptedCount: attempted.length,
       skippedCount: totalQuestions - attempted.length,
@@ -87,15 +108,12 @@ export const submitAttempt = onCall(
       avgTimeMs
     };
 
-    /* ---------------- TRANSACTION ---------------- */
-
-    const attemptRef = db.collection("attempts").doc();
-
     await db.runTransaction(async (tx) => {
-      const statsRef = db.collection("userStats").doc(uid);
-      const snap = await tx.get(statsRef);
 
-      const prev = snap.exists ? snap.data()! : {
+      const statsRef = db.collection("userStats").doc(uid);
+      const statsSnap = await tx.get(statsRef);
+
+      const prev = statsSnap.exists ? statsSnap.data()! : {
         totals: {
           attempts: 0,
           questionsAttempted: 0,
@@ -104,19 +122,11 @@ export const submitAttempt = onCall(
         }
       };
 
-      tx.set(attemptRef, {
-        attemptId: attemptRef.id,
-        userId: uid,
-        examId: exam.id,
-        examType: exam.type,
-        subjectId: subject.id,
-        subjectName: subject.name,
-        mode: "QUIZ",
-        questions,
+      tx.update(attemptRef, {
         responses,
         result,
         status: "COMPLETED",
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        finishedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       tx.set(
@@ -132,16 +142,12 @@ export const submitAttempt = onCall(
             timeSpentMs:
               prev.totals.timeSpentMs + totalTimeMs
           },
-          lastUpdated:
-            admin.firestore.FieldValue.serverTimestamp()
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
         },
         { merge: true }
       );
     });
 
-    return {
-      attemptId: attemptRef.id,
-      result
-    };
+    return { attemptId, result };
   }
 );
